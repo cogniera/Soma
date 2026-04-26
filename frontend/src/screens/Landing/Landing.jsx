@@ -44,10 +44,9 @@ export default function Landing({ onChat, onExplore }) {
 
             <div className="landing-nav-links">
               <a href="#" className="is-active">Home</a>
-              <a href="#">How it works</a>
-              <a href="#">Symptoms</a>
-              <a href="#">For clinicians</a>
-              <a href="#">Journal</a>
+              <a href="https://github.com/cogniera/Soma" target="_blank" rel="noopener noreferrer">How it works</a>
+              <a href="https://github.com/cogniera/Soma" target="_blank" rel="noopener noreferrer">GitHub</a>
+              <a href="https://devpost.com/software/soma" target="_blank" rel="noopener noreferrer">Devpost</a>
             </div>
 
             <div className="landing-nav-actions">
@@ -73,7 +72,7 @@ export default function Landing({ onChat, onExplore }) {
             <div className="landing-hero-text">
               <h1 className="landing-hero-title">
                 <span className="line line-1">A gentler way to <span className="hi">listen</span></span><br />
-                <span className="line line-2">to what your <span className="hi">body</span></span><br />
+                <span className="line line-2">to what your <span className="hi-dark">body</span></span><br />
                 <span className="line line-3">is saying.</span>
               </h1>
 

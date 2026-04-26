@@ -238,7 +238,8 @@
 .landing-hero-title .line-1 { padding-right: 220px; }
 .landing-hero-title .line-2 { padding-right: 130px; }
 .landing-hero-title .line-3 { padding-right: 40px; }
-.landing-hero-title .hi { color: var(--soma-honey-400); font-weight: 600; }
+.landing-hero-title .hi { color: var(--soma-honey-400); font-weight: 600; font-style: italic; }
+.landing-hero-title .hi-dark { color: #000; font-weight: 700; }
 
 .landing-hero-sub {
   font-size: 19px;
