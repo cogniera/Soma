@@ -24,7 +24,8 @@ const INITIAL_SESSION = {
 }
 
 export default function App() {
-  const alreadyVisited = !!sessionStorage.getItem(VISITED_KEY)
+    // const alreadyVisited = !!sessionStorage.getItem(VISITED_KEY)
+  const alreadyVisited = true
 
   const [phase, setPhase]     = useState(alreadyVisited ? 'landing' : 'intro')
   const [session, setSession] = useState(INITIAL_SESSION)

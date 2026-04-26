@@ -11,7 +11,8 @@
       "Bash(curl *)",
       "Bash(node -e ' *)",
       "Bash(xargs kill *)",
-      "Bash(node server.js)"
+      "Bash(node server.js)",
+      "WebFetch(domain:docs.backboard.io)"
     ]
   }
 }
