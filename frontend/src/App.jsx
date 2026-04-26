@@ -55,8 +55,7 @@ export default function App() {
     setPhase('qna')
   }, [])
 
-  const onSymptomVisual = useCallback((symptomText) => {
-    merge({ symptomText })
+  const onSymptomVisual = useCallback(() => {
     setPhase('visual')
   }, [])
 

@@ -24,13 +24,13 @@ export default function SymptomInput({ onSubmit, onVisual, onBack }) {
   }
 
   return (
-    <div className="screen symptom-screen">
+    <div className="screen symptom-screen" style={{ overflow: 'hidden' }}>
       <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
         <button className="outline-btn" onClick={onBack}>← Back</button>
       </div>
 
       {/* 3D model — right half, behind content */}
-      <div style={{ position: 'fixed', top: 0, right: 0, width: '50%', height: '100%', pointerEvents: 'none' }}>
+      <div style={{ position: 'fixed', top: 0, right: '0%', width: '42%', height: '100%', pointerEvents: 'none' }}>
         <VoxelBrain autoRotate />
       </div>
 
@@ -38,16 +38,16 @@ export default function SymptomInput({ onSubmit, onVisual, onBack }) {
       <div style={{ maxWidth: 480 }}>
       <p className="chat-eyebrow">
         <span className="eyebrow-dot" />
-        SOMA · Muscle Educator
+        SOMA · Body Companion
       </p>
 
       <h2 className="screen-heading">
-        What would you like<br />
-        <em className="accent">to explore?</em>
+        What's bothering<br />
+        <em className="accent">you today?</em>
       </h2>
 
       <p className="screen-sub">
-        Tell me which muscles or movements you're curious about — I'll walk you through them.
+        Describe your symptoms and Oso will help you understand what's going on.
       </p>
 
       <div className="quick-picks">
@@ -63,7 +63,7 @@ export default function SymptomInput({ onSubmit, onVisual, onBack }) {
         ))}
       </div>
 
-      <div className="input-row">
+      <div className="input-row" style={{ marginTop: 10 }}>
         <textarea
           ref={textareaRef}
           className="chat-input"
@@ -80,7 +80,7 @@ export default function SymptomInput({ onSubmit, onVisual, onBack }) {
         />
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
         <button className="cta-btn" onClick={submit} disabled={!text.trim()}>
           Chat with Oso
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
@@ -89,9 +89,7 @@ export default function SymptomInput({ onSubmit, onVisual, onBack }) {
           </svg>
         </button>
 
-        <button className="outline-btn" onClick={() => { const val = text.trim(); if (val) onVisual(val) }} disabled={!text.trim()}>
-          Visualize
-        </button>
+      </div>
       </div>
     </div>
   )
