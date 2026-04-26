@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react'
 import VoiceButton from '../../components/VoiceButton/VoiceButton'
+import VoxelBrain from '../../components/bodyman/VoxelBrain'
 
 const QUICK_PICKS = [
   'Lower back', 'Shoulders', 'Quads',
   'Hamstrings', 'Chest', 'Neck',
 ]
 
-export default function SymptomInput({ onSubmit, onVisual }) {
+export default function SymptomInput({ onSubmit, onVisual, onBack }) {
   const [text, setText]           = useState('')
   const [interimText, setInterim] = useState('')
   const textareaRef               = useRef(null)
@@ -24,6 +25,17 @@ export default function SymptomInput({ onSubmit, onVisual }) {
 
   return (
     <div className="screen symptom-screen">
+      <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
+        <button className="outline-btn" onClick={onBack}>← Back</button>
+      </div>
+
+      {/* 3D model — right half, behind content */}
+      <div style={{ position: 'fixed', top: 0, right: 0, width: '50%', height: '100%', pointerEvents: 'none' }}>
+        <VoxelBrain autoRotate />
+      </div>
+
+      {/* Content — natural width, left side */}
+      <div style={{ maxWidth: 480 }}>
       <p className="chat-eyebrow">
         <span className="eyebrow-dot" />
         SOMA · Muscle Educator

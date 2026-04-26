@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -217,7 +217,7 @@ const GROUP_COLORS: Record<string, string> = {
   Forearm:     "#2e7eb8",
   Hand:        "#1a5c9a",
   Core:        "#e8c84a",
-  Obliques:    "#c8b99a",
+  Obliques:    "#c084fc",
   Back:        "#4caf7d",
   Glutes_Hip:  "#d99b5b",
   Quads:       "#5b9bd9",
@@ -356,18 +356,18 @@ function Man({ focusGroup, flyState, orbitRef }: ManProps) {
     sharedUniforms.uHoverCenter.value.lerp(target.center, 1 - Math.exp(-CENTER_LERP_RATE * dt));
   });
 
-  const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
-    e.stopPropagation();
-    hoverTarget.current.center.copy(e.point);
-    hoverTarget.current.radius = HOVER_RADIUS;
-    hoverTarget.current.strength = HOVER_STRENGTH;
-  };
+  // const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
+  //   e.stopPropagation();
+  //   hoverTarget.current.center.copy(e.point);
+  //   hoverTarget.current.radius = HOVER_RADIUS;
+  //   hoverTarget.current.strength = HOVER_STRENGTH;
+  // };
 
-  const handlePointerOut = (e: ThreeEvent<PointerEvent>) => {
-    e.stopPropagation();
-    hoverTarget.current.radius = 0;
-    hoverTarget.current.strength = 0;
-  };
+  // const handlePointerOut = (e: ThreeEvent<PointerEvent>) => {
+  //   e.stopPropagation();
+  //   hoverTarget.current.radius = 0;
+  //   hoverTarget.current.strength = 0;
+  // };
 
   return (
     <>
@@ -375,8 +375,8 @@ function Man({ focusGroup, flyState, orbitRef }: ManProps) {
         <primitive
           key={i}
           object={mesh}
-          onPointerMove={handlePointerMove}
-          onPointerOut={handlePointerOut}
+          // onPointerMove={handlePointerMove}
+          // onPointerOut={handlePointerOut}
         />
       ))}
     </>
@@ -385,9 +385,10 @@ function Man({ focusGroup, flyState, orbitRef }: ManProps) {
 
 type SceneProps = {
   focusGroup: string | null;
+  autoRotate?: boolean;
 };
 
-function Scene({ focusGroup }: SceneProps) {
+function Scene({ focusGroup, autoRotate = false }: SceneProps) {
   const orbitRef = useRef<any>(null);
 
   const flyState = useRef<FlyState>({
@@ -413,7 +414,7 @@ function Scene({ focusGroup }: SceneProps) {
         active: true,
         arrived: false,
         target: new THREE.Vector3(0, 0.3, 0),
-        camTarget: new THREE.Vector3(10, 0.3, 10),
+        camTarget: new THREE.Vector3(7, 0.3, 7),
       };
       if (orbitRef.current) orbitRef.current.enabled = false;
     }
@@ -428,9 +429,13 @@ function Scene({ focusGroup }: SceneProps) {
       <OrbitControls
         ref={orbitRef}
         enablePan={false}
+        enableZoom={!autoRotate}
+        enableRotate={!autoRotate}
         minDistance={6}
         maxDistance={22}
         target={[0, 0.3, 0]}
+        autoRotate={autoRotate}
+        autoRotateSpeed={1.2}
       />
     </>
   );
@@ -438,17 +443,19 @@ function Scene({ focusGroup }: SceneProps) {
 
 type VoxelBrainProps = {
   focusGroup?: string | null;
+  autoRotate?: boolean;
+  style?: React.CSSProperties;
 };
 
-export default function VoxelBrain({ focusGroup = null }: VoxelBrainProps) {
+export default function VoxelBrain({ focusGroup = null, autoRotate = false, style }: VoxelBrainProps) {
   return (
     <Canvas
-      camera={{ position: [10, 0.3, 10], fov: 42, near: 0.5, far: 80 }}
+      camera={{ position: [7, 0.3, 7], fov: 42, near: 0.5, far: 80 }}
       gl={{ antialias: true, alpha: true }}
       dpr={[1, 2]}
       style={{ background: "transparent", ...style }}
     >
-      <Scene focusGroup={focusGroup} />
+      <Scene focusGroup={focusGroup} autoRotate={autoRotate} />
     </Canvas>
   );
 }

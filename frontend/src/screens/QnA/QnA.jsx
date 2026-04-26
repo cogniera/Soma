@@ -133,7 +133,7 @@ function Popup({ symptomText, onClose, onOsoMood }) {
 }
 
 // ── Main component ────────────────────────────────────────────
-export default function QnA({ symptomText, onComplete, onOsoMood }) {
+export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
   const [messages,  setMessages]  = useState([{ role: 'user', text: symptomText }])
   const [input,     setInput]     = useState('')
   const [loading,   setLoading]   = useState(true)
@@ -231,6 +231,9 @@ export default function QnA({ symptomText, onComplete, onOsoMood }) {
   return (
     <>
       <div className="screen qna-screen">
+        <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
+          <button className="outline-btn" onClick={onBack}>← Back</button>
+        </div>
         <div className="chat-feed">
 
           {messages.map((m, i) => (

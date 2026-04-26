@@ -9,7 +9,7 @@ import Triage     from './screens/Triage/Triage'
 import BodyMap    from './screens/BodyMap/BodyMap'
 import Anatomy    from './screens/Anatomy/Anatomy'
 import OsoCorner  from './components/OsoCorner/OsoCorner'
-import VoxelBrain from './components/bodyman/VoxelBrain'
+import Explore     from './screens/Explore/Explore'
 
 // Phase flow: intro → landing → symptom → qna → triage → bodymap → anatomy
 // On refresh: skip intro, start at landing (sessionStorage flag)
@@ -26,8 +26,8 @@ const INITIAL_SESSION = {
 export default function App() {
   const alreadyVisited = !!sessionStorage.getItem(VISITED_KEY)
 
-  const [phase, setPhase]     = useState('anatomy') // TEST ONLY
-  const [session, setSession] = useState({ ...INITIAL_SESSION, bodyRegion: 'chest' }) // TEST ONLY
+  const [phase, setPhase]     = useState(alreadyVisited ? 'landing' : 'intro')
+  const [session, setSession] = useState(INITIAL_SESSION)
   const [osoMood, setOsoMood] = useState('idle')
   const [mascotReady, setMascotReady] = useState(alreadyVisited)
 
@@ -78,7 +78,7 @@ export default function App() {
   const onAnatomyBack = useCallback(() => setPhase('bodymap'), [])
 
   // ── Render ───────────────────────────────────────────────────
-  const showCorner = mascotReady && phase !== 'intro' && phase !== 'landing'
+  const showCorner = mascotReady && phase !== 'intro' && phase !== 'landing' && phase !== 'visual'
 
   return (
     <div className="soma-root">
@@ -100,7 +100,7 @@ export default function App() {
 
       {phase === 'symptom' && (
         <div className="screen-wrap" key="symptom">
-          <SymptomInput onSubmit={onSymptomSubmit} onVisual={onSymptomVisual} />
+          <SymptomInput onSubmit={onSymptomSubmit} onVisual={onSymptomVisual} onBack={() => setPhase('landing')} />
         </div>
       )}
 
@@ -110,6 +110,7 @@ export default function App() {
             symptomText={session.symptomText}
             onComplete={onQnAComplete}
             onOsoMood={setOsoMood}
+            onBack={() => setPhase('landing')}
           />
         </div>
       )}
@@ -137,12 +138,7 @@ export default function App() {
 
       {phase === 'visual' && (
         <div className="screen-wrap screen-wrap--full" key="visual">
-          <div style={{ position: 'fixed', inset: 0 }}>
-            <VoxelBrain />
-            <div style={{ position: 'absolute', bottom: 24, left: 24 }}>
-              <button className="outline-btn" onClick={restart}>← Back</button>
-            </div>
-          </div>
+          <Explore onBack={() => setPhase('landing')} />
         </div>
       )}
 
