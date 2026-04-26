@@ -37,16 +37,9 @@ export default function Landing({ onChat, onExplore }) {
           {/* NAV */}
           <nav className="landing-nav">
             <div className="landing-brand">
-              <span className="landing-brand-mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <circle cx="6.5" cy="5" r="2.4" fill="#fff" />
-                  <circle cx="17.5" cy="5" r="2.4" fill="#fff" />
-                  <circle cx="12" cy="13" r="7.2" fill="#fff" />
-                  <circle cx="9.5" cy="12" r="1" fill="#E89B2D" />
-                  <circle cx="14.5" cy="12" r="1" fill="#E89B2D" />
-                </svg>
+              <span className="landing-brand-mark">
+                <img src="/mainlogo.png" alt="Soma" />
               </span>
-              <span className="landing-brand-name"><b>Soma</b></span>
             </div>
 
             <div className="landing-nav-links">
