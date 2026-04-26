@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { chat, muscleStory, muscleFocus } from '../../services/claude'
-import { speak, stopSpeaking } from '../../services/elevenlabs'
+import { speak, stopSpeaking, prefetchAudio } from '../../services/elevenlabs'
 import osoIdle from '../../assets/oso-idle.png'
 import osoSpeak from '../../assets/oso-speak.png'
 import VoxelBrain from '../../components/bodyman/VoxelBrain'
@@ -86,15 +86,24 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
 
     let accumulated = ''
 
-    for (const item of story) {
+    // prefetch first segment immediately
+    let nextBlob = prefetchAudio(story[0].script)
+
+    for (let idx = 0; idx < story.length; idx++) {
       if (cancelled?.()) break
-      setStoryTrigger(item.script)
+      const item = story[idx]
       const scriptText = item.script
+      const blob = await nextBlob
+
+      // prefetch next segment in parallel while this one plays
+      if (idx + 1 < story.length) {
+        nextBlob = prefetchAudio(story[idx + 1].script)
+      }
+
+      setStoryTrigger(scriptText)
       await speak(scriptText, {
-        onDuration: (dur) => {
-          const base = accumulated
-          typeInto(base, scriptText, dur)
-        },
+        prefetchedBlob: blob,
+        onDuration: (dur) => { typeInto(accumulated, scriptText, dur) },
         onEnd: () => {
           accumulated += (accumulated ? ' ' : '') + scriptText
           stopTyping(accumulated)
