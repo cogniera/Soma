@@ -1,0 +1,555 @@
+<!DOCTYPE html><html lang="en"><head>
+
+
+
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOMA — Your gentle body companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&amp;family=Nunito:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+  :root {
+    --soma-bg-0:#FBF3E2; --soma-bg-1:#FDF6E9; --soma-bg-2:#FBEFD9; --soma-bg-3:#F6F8EE;
+    --soma-surface:#FFFFFF; --soma-surface-2:#FFFBF1;
+    --soma-honey-50:#FFF4D6; --soma-honey-100:#FCE6A8; --soma-honey-200:#F8D27A;
+    --soma-honey-300:#F2B94A; --soma-honey-400:#E89B2D; --soma-honey-500:#D4811E; --soma-honey-600:#A85F12;
+    --soma-ink-900:#3A2410; --soma-ink-700:#5A4226; --soma-ink-500:#8A7458;
+    --soma-ink-400:#B0A088; --soma-ink-300:#D6C9AE;
+    --soma-mint:#9BC9B7; --soma-blush:#F4B999; --soma-sage:#C9D9B5;
+    --soma-font-display:"Fraunces",Georgia,serif;
+    --soma-font-body:"Nunito",system-ui,sans-serif;
+    --soma-font-mono:"JetBrains Mono",ui-monospace,monospace;
+    --soma-shadow-sm:0 1px 2px rgba(90,66,38,.04),0 2px 6px rgba(90,66,38,.04);
+    --soma-shadow-md:0 2px 6px rgba(90,66,38,.05),0 12px 28px rgba(90,66,38,.07);
+    --soma-shadow-lg:0 4px 10px rgba(90,66,38,.06),0 24px 48px rgba(90,66,38,.10);
+    --soma-glow-honey:0 8px 24px rgba(232,155,45,.28);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;font-family:var(--soma-font-body);color:var(--soma-ink-900);line-height:1.5;
+    height:100vh;overflow:hidden;
+    background:
+      radial-gradient(ellipse 70% 80% at 100% 50%, rgba(242,185,74,.32), transparent 60%),
+      radial-gradient(ellipse 50% 60% at 0% 0%, rgba(242,185,74,.14), transparent 60%),
+      linear-gradient(135deg, #FFF8E8 0%, #FCE6B8 55%, #F4C97A 100%);
+  }
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;border:0;background:none;}
+
+  /* Outer page wrap with rounded card aesthetic, like BrightNest */
+  .page {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* HERO CARD ---------------------------------- */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+  }
+
+  /* Diagonal bottom frame — cream sweep across the bottom */
+  .bottom-frame {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 18vh;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .bottom-frame svg { width: 100%; height: 100%; display: block; }
+
+  /* Soft wavy background ribbons (echoing BrightNest) */
+  .hero-bg {
+    position: fixed; inset: 0; pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+  .hero-bg svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* Tiny scattered "bee dots" */
+  .hero-bg::after {
+    content:""; position:fixed; inset:0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      radial-gradient(circle at 12% 22%, rgba(168,95,18,.10) 1.4px, transparent 2px),
+      radial-gradient(circle at 78% 14%, rgba(168,95,18,.08) 1.4px, transparent 2px),
+      radial-gradient(circle at 38% 72%, rgba(168,95,18,.10) 1.6px, transparent 2.2px),
+      radial-gradient(circle at 92% 60%, rgba(168,95,18,.08) 1.4px, transparent 2px),
+      radial-gradient(circle at 18% 88%, rgba(168,95,18,.10) 1.4px, transparent 2px),
+      radial-gradient(circle at 55% 30%, rgba(168,95,18,.07) 1.2px, transparent 1.8px);
+    background-size: 480px 480px;
+    opacity: .9;
+  }
+
+  /* NAV ---------------------------------------- */
+  .nav {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 32px 80px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--soma-font-display);
+    font-weight: 700;
+    font-size: 24px;
+    color: var(--soma-ink-900);
+    letter-spacing: -0.01em;
+  }
+  .brand-mark {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--soma-honey-400);
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: var(--soma-glow-honey);
+    position: relative;
+  }
+  .brand-mark svg { width: 22px; height: 22px; }
+  .brand-mark::after {
+    content:""; position:absolute; inset:-3px;
+    border:1px solid rgba(232,155,45,.35);
+    border-radius:50%;
+  }
+  .brand-name b { color: var(--soma-honey-500); font-weight: 700; }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--soma-ink-700);
+  }
+  .nav-links a { position: relative; padding: 6px 0; transition: color .15s ease; }
+  .nav-links a:hover { color: var(--soma-ink-900); }
+  .nav-links a.is-active { color: var(--soma-ink-900); }
+  .nav-links a.is-active::after {
+    content:""; position:absolute; left:0; right:0; bottom:-6px;
+    height:2px; background:var(--soma-ink-900); border-radius:2px;
+  }
+
+  .nav-actions { display:flex; gap:12px; align-items:center; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 999px;
+    font-family: var(--soma-font-body);
+    font-weight: 700;
+    font-size: 14.5px;
+    transition: transform .12s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+  }
+  .btn-outline {
+    background: transparent;
+    color: var(--soma-honey-500);
+    border-color: var(--soma-honey-300);
+  }
+  .btn-outline:hover { background: rgba(255,255,255,.5); border-color: var(--soma-honey-400); }
+  .btn-primary {
+    background: var(--soma-honey-400);
+    color: #fff;
+    box-shadow: var(--soma-glow-honey);
+  }
+  .btn-primary:hover { background: var(--soma-honey-500); transform: translateY(-1px); }
+
+  /* HERO BODY -------------------------------- */
+  .hero-body {
+    position: relative;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 60px;
+    padding: 0 80px 60px;
+    align-items: start;
+  }
+
+  .hero-text { padding: 0 0 32px; max-width: 720px; align-self: start; margin-top: 20px; }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 800; font-size: 12px; letter-spacing: 0.20em;
+    text-transform: uppercase; color: var(--soma-honey-500);
+    margin-bottom: 22px;
+  }
+  .eyebrow::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--soma-honey-400);
+    box-shadow: 0 0 0 3px rgba(232,155,45,.18);
+  }
+
+  h1.hero-title {
+    font-family: var(--soma-font-display);
+    font-weight: 700;
+    font-size: clamp(48px, 6.2vw, 84px);
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    margin: 0 0 32px;
+    color: var(--soma-ink-900);
+    text-wrap: pretty;
+    position: relative;
+    z-index: 6;
+    white-space: nowrap;
+  }
+  h1.hero-title .line { display: inline-block; }
+  h1.hero-title .line-1 { padding-right: 220px; }
+  h1.hero-title .line-2 { padding-right: 130px; }
+  h1.hero-title .line-3 { padding-right: 40px; }
+  h1.hero-title .hi { color: var(--soma-honey-400); font-style: italic; font-weight: 600; }
+
+  .hero-sub {
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--soma-ink-700);
+    margin: 0 0 40px;
+    max-width: 520px;
+  }
+
+  .cta-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+
+  .btn-hero {
+    padding: 16px 28px;
+    font-size: 15px;
+    background: var(--soma-honey-400);
+    color: #fff;
+    border-radius: 999px;
+    font-weight: 700;
+    box-shadow: var(--soma-glow-honey);
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .btn-hero:hover { background: var(--soma-honey-500); transform: translateY(-1px); }
+  .btn-hero .arrow {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(255,255,255,.22);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px;
+  }
+
+  /* Tri-dot trust line under CTA */
+  .trust {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px; color: var(--soma-ink-700);
+  }
+  .tri-dots { display:inline-flex; gap:5px; }
+  .tri-dots span { width:8px; height:8px; border-radius:50%; }
+  .tri-dots span:nth-child(1){ background: var(--soma-honey-300); }
+  .tri-dots span:nth-child(2){ background: var(--soma-mint); }
+  .tri-dots span:nth-child(3){ background: var(--soma-blush); }
+
+  /* Decorative honey-comb sprigs (top-left of text, like BrightNest plant) */
+  .sprig {
+    position: absolute;
+    top: 110px; left: -20px;
+    width: 130px; height: 180px;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  /* HERO IMAGE area --------------------------- */
+  .hero-image-wrap {
+    position: relative;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 600px;
+    padding-top: 0;
+    margin-top: 20px;
+    margin-left: -200px;
+  }
+  .hero-image {
+    position: relative;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0;
+  }
+  .hero-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 24px 40px rgba(90,66,38,.18));
+  }
+
+  /* Orbiting line around mascot, like BrightNest's curve */
+  .orbit {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%) rotate(-12deg);
+    width: 110%; height: 80%;
+    border: 2px dashed rgba(232,155,45,.45);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Play button overlay (echoes BrightNest's video play) */
+  .play-btn {
+    position: absolute;
+    left: -40px;
+    top: 56%;
+    transform: translateY(-50%);
+    width: 76px; height: 76px;
+    border-radius: 50%;
+    background: var(--soma-surface);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 14px 32px rgba(90,66,38,.18);
+    z-index: 6;
+    cursor: pointer;
+    transition: transform .18s ease;
+  }
+  .play-btn:hover { transform: translateY(-50%) scale(1.05); }
+  .play-btn::before {
+    content: "";
+    position: absolute; inset: -6px;
+    border: 1px solid rgba(232,155,45,.28);
+    border-radius: 50%;
+  }
+  .play-btn .triangle {
+    width: 0; height: 0;
+    border-left: 18px solid var(--soma-honey-400);
+    border-top: 11px solid transparent;
+    border-bottom: 11px solid transparent;
+    margin-left: 5px;
+  }
+
+  /* Floating little badges around mascot scene */
+  .float-card {
+    position: absolute;
+    z-index: 5;
+    background: var(--soma-surface);
+    border-radius: 18px;
+    padding: 12px 14px 12px 12px;
+    box-shadow: var(--soma-shadow-md);
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid rgba(90,66,38,.05);
+  }
+  .float-card .ic {
+    width: 36px; height: 36px; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: none;
+  }
+  .float-card .lbl-1 { font-size: 11px; color: var(--soma-ink-500); font-weight:600; letter-spacing:.04em; text-transform:uppercase;}
+  .float-card .lbl-2 { font-size: 13.5px; color: var(--soma-ink-900); font-weight: 700; }
+
+  .float-1 { top: 60px; left: -10px; }
+  .float-1 .ic { background: rgba(155,201,183,.35); color: #5a8b73; }
+  .float-2 { bottom: 80px; right: -20px; }
+  .float-2 .ic { background: rgba(244,185,153,.35); color: #b65c3d; }
+  .float-3 { top: 20px; right: 40px; }
+  .float-3 .ic { background: rgba(242,185,74,.30); color: var(--soma-honey-600); }
+
+  /* BOTTOM ribbon: feature pills under hero ---- */
+  .feature-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: rgba(168,95,18,.10);
+    border-radius: 22px;
+    overflow: hidden;
+    margin: 24px 0 0;
+    box-shadow: var(--soma-shadow-md);
+    border: 1px solid rgba(168,95,18,.08);
+  }
+  .feature {
+    background: var(--soma-surface);
+    padding: 22px 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .feature .ic {
+    width: 42px; height: 42px; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: none;
+  }
+  .feature h4 { margin:0 0 2px; font-family:var(--soma-font-display); font-size:16px; font-weight:700; color:var(--soma-ink-900); }
+  .feature p  { margin:0; font-size:12.5px; color:var(--soma-ink-500); line-height:1.4; }
+
+  /* Floating mascot reminder bottom-left of viewport */
+  .floating-mascot {
+    position: fixed;
+    bottom: 24px; left: 24px;
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: var(--soma-surface);
+    box-shadow: 0 12px 32px rgba(90,66,38,.18);
+    border: 1.5px solid var(--soma-sage);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50;
+    cursor: pointer;
+  }
+  .floating-mascot .inner {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    background: var(--soma-honey-300);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .floating-mascot .inner svg { width: 30px; height: 30px; }
+
+  /* Speech bubble on hover */
+  .floating-mascot::after {
+    content: "Hi! Need a check-in?";
+    position: absolute;
+    left: 76px; top: 50%;
+    transform: translateY(-50%);
+    background: var(--soma-surface);
+    padding: 8px 14px;
+    border-radius: 14px 14px 14px 4px;
+    font-size: 13px; color: var(--soma-ink-900);
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: var(--soma-shadow-md);
+    opacity: 0; pointer-events: none;
+    transition: opacity .18s ease;
+  }
+  .floating-mascot:hover::after { opacity: 1; }
+
+  /* Responsive */
+  @media (max-width: 980px) {
+    .nav { padding: 20px 24px; }
+    .nav-links { display: none; }
+    .hero-body { grid-template-columns: 1fr; padding: 8px 24px 48px; }
+    .hero-image-wrap { min-height: 360px; }
+    .feature-row { grid-template-columns: repeat(2, 1fr); }
+    .sprig { display: none; }
+  }
+</style>
+</head>
+<body style="cursor: crosshair;" data-cc-id="cc-1">
+
+<!-- Wavy ribbon background (full viewport) -->
+<div class="hero-bg">
+  <svg viewBox="0 0 1280 720" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="width:100vw;height:100vh;">
+    <defs>
+      <linearGradient id="rib1" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".55"></stop>
+        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"></stop>
+      </linearGradient>
+      <linearGradient id="rib2" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#FFE0A8" stop-opacity="0"></stop>
+        <stop offset="100%" stop-color="#FFE0A8" stop-opacity=".7"></stop>
+      </linearGradient>
+    </defs>
+    <path d="M-50,420 C 200,300 380,560 600,420 C 820,280 980,520 1330,360 L 1330,720 L -50,720 Z" fill="url(#rib1)"></path>
+    <path d="M380,0 C 480,160 360,320 520,440 C 680,560 600,680 760,720 L 380,720 Z" fill="url(#rib2)" opacity=".55"></path>
+    <path d="M820,-20 C 880,180 760,280 920,420 C 1080,560 980,700 1180,720 L 820,720 Z" fill="url(#rib2)" opacity=".4"></path>
+  </svg>
+</div>
+
+<main class="page" style="position:relative;z-index:1;">
+
+  <section class="hero">
+    <!-- (ribbons moved to body for full-viewport coverage) -->
+
+    <!-- NAV -->
+    <nav class="nav" data-cc-id="cc-7">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <!-- tiny bear silhouette mark -->
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="6.5" cy="5" r="2.4" fill="#fff"></circle>
+            <circle cx="17.5" cy="5" r="2.4" fill="#fff"></circle>
+            <circle cx="12" cy="13" r="7.2" fill="#fff"></circle>
+            <circle cx="9.5" cy="12" r="1" fill="#E89B2D"></circle>
+            <circle cx="14.5" cy="12" r="1" fill="#E89B2D"></circle>
+          </svg>
+        </span>
+        <span class="brand-name" style="color: rgb(161, 145, 125);" data-cc-id="cc-4"><b style="color: rgb(58, 36, 16)" data-cc-id="cc-3">Soma</b></span>
+      </div>
+
+      <div class="nav-links">
+        <a href="#" class="is-active">Home</a>
+        <a href="#">How it works</a>
+        <a href="#">Symptoms</a>
+        <a href="#">For clinicians</a>
+        <a href="#">Journal</a>
+      </div>
+
+      <div class="nav-actions">
+        <button class="btn btn-outline">Sign in</button>
+        <button class="btn btn-primary">Start a check-in</button>
+      </div>
+    </nav>
+
+    <!-- Decorative sprig top-left of text column -->
+    <svg class="sprig" viewBox="0 0 130 180" fill="none" aria-hidden="true">
+      <path d="M65 180 C 60 130, 75 90, 65 30" stroke="#A85F12" stroke-width="2" stroke-linecap="round" opacity=".55"></path>
+      <ellipse cx="38" cy="90" rx="22" ry="13" transform="rotate(-30 38 90)" fill="#9BC9B7" opacity=".85"></ellipse>
+      <ellipse cx="92" cy="60" rx="20" ry="12" transform="rotate(20 92 60)" fill="#C9D9B5" opacity=".85"></ellipse>
+      <ellipse cx="50" cy="40" rx="16" ry="10" transform="rotate(-10 50 40)" fill="#9BC9B7" opacity=".75"></ellipse>
+      <circle cx="68" cy="22" r="9" fill="#F2B94A"></circle>
+      <circle cx="68" cy="22" r="4" fill="#A85F12" opacity=".25"></circle>
+    </svg>
+
+    <!-- HERO BODY -->
+    <div class="hero-body">
+
+      <!-- LEFT: text -->
+      <div class="hero-text" style="padding: 15px 0px 32px;" data-cc-id="cc-1">
+        <div class="eyebrow">SOMA · YOUR BODY COMPANION</div>
+
+        <h1 class="hero-title">
+          <span class="line line-1" style="" data-cc-id="cc-5">A gentler way to <span class="hi">listen</span></span><br>
+          <span class="line line-2" style="" data-cc-id="cc-6">to what your <span class="hi">body</span></span><br>
+          <span class="line line-3">is saying.</span>
+        </h1>
+
+        <p class="hero-sub" style="width: 350px">
+          Talk to SOMA about a headache, a tightness, a tired week —
+          and walk away with a clearer picture of what's going on, in
+          words you'd actually use.
+        </p>
+
+        <div class="cta-row">
+          <button class="btn-hero">
+            Start a check-in
+            <span class="arrow">→</span>
+          </button>
+          <div class="trust">
+            <div class="tri-dots"><span></span><span></span><span></span></div>
+            <span>Free · 2 min · No sign-up</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: image -->
+      <div class="hero-image-wrap">
+        <div class="hero-image">
+          <img src="assets/bears-anatomy.png" alt="SOMA bear teaching a class of small bears about human anatomy" data-cc-id="cc-2" style="padding: 35px 0px 0px;">
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+</main>
+
+<!-- Diagonal cream frame across bottom -->
+<div class="bottom-frame" aria-hidden="true">
+  <svg viewBox="0 0 1440 200" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="frameGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#FFF8E8" stop-opacity=".95"></stop>
+        <stop offset="100%" stop-color="#FFF1D2" stop-opacity=".95"></stop>
+      </linearGradient>
+    </defs>
+    <path d="M0,90 C 320,40 760,180 1120,90 C 1280,55 1380,75 1440,55 L 1440,200 L 0,200 Z" fill="url(#frameGrad)"></path>
+    <path d="M0,110 C 280,70 720,200 1100,110 C 1260,80 1380,100 1440,80 L 1440,200 L 0,200 Z" fill="#FFFAEC" opacity=".55"></path>
+  </svg>
+</div>
+
+</body></html>
