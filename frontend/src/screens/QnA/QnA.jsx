@@ -274,6 +274,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
       <div className="qna-chat-col">
         <div className="chat-feed">
           {messages.map((m, i) => {
+            if (m.role === 'assistant' && !m.text) return null
             const isTyping = m.role === 'assistant' && i === messages.length - 1 && loading === false && bearState === 'speak'
             return (
               <div key={i} className={`bubble ${m.role === 'assistant' ? 'bubble--oso' : 'bubble--user'}`}>
