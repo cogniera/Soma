@@ -7,7 +7,11 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5175)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
       "Bash(curl -s \"http://localhost:5173/src/screens/Anatomy/Anatomy.jsx\")",
-      "Bash(curl -s \"http://localhost:5174/src/screens/Anatomy/Anatomy.jsx\")"
+      "Bash(curl -s \"http://localhost:5174/src/screens/Anatomy/Anatomy.jsx\")",
+      "Bash(curl *)",
+      "Bash(node -e ' *)",
+      "Bash(xargs kill *)",
+      "Bash(node server.js)"
     ]
   }
 }

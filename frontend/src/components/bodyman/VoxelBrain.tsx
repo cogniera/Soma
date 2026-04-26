@@ -228,13 +228,13 @@ function Man() {
   );
 }
 
-export default function VoxelBrain() {
+export default function VoxelBrain({ style }: { style?: React.CSSProperties }) {
   return (
     <Canvas
       camera={{ position: [10, 0.3, 10], fov: 42, near: 0.5, far: 80 }}
       gl={{ antialias: true, alpha: true }}
       dpr={[1, 2]}
-      style={{ background: "transparent" }}
+      style={{ background: "transparent", ...style }}
     >
       <ambientLight intensity={0.8} />
       <directionalLight position={[6, 8, 6]} intensity={1.15} />

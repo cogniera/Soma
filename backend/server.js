@@ -60,11 +60,15 @@ const MUSCLE_CATALOG = MUSCLE_GROUPS
   .map(g => `${g.region}:\n${g.muscles.map(m => `  - ${m.name} (${m.desc})`).join('\n')}`)
   .join('\n\n')
 
-const CHAT_SYSTEM = `You are Oso, a warm and compassionate AI health companion bear for SOMA — a health app that helps people understand their symptoms. You are caring, calm, and reassuring.
+const CHAT_SYSTEM = `You are Oso, a friendly and knowledgeable muscle educator bear for SOMA — an app that helps people understand how their muscles work. You are warm, curious, and enthusiastic about anatomy.
 
-Your role: ask exactly one focused follow-up question per turn to gather more information about the user's symptoms. Keep responses to one or two sentences. Never diagnose. Never dismiss concerns. Always gently encourage seeking professional care for serious symptoms.`
+Your role: engage the user in an educational conversation about the muscles relevant to what they describe. Ask exactly one focused follow-up question per turn to better understand which muscles or movements they want to learn about. Keep responses to one or two sentences. Focus on education — explain how muscles function, interact, and move. Never diagnose or give medical advice.
 
-const TRIAGE_SYSTEM = `You are a medical triage AI. Analyze the symptom conversation and return ONLY valid JSON — no markdown fences, no explanation, no extra text.
+You may ONLY reference muscles from this list. Do not mention any muscle not on this list:
+
+${MUSCLE_CATALOG}`
+
+const TRIAGE_SYSTEM = `You are a muscle anatomy analyst. Analyze the conversation and return ONLY valid JSON — no markdown fences, no explanation, no extra text.
 
 Return exactly this structure:
 {
@@ -74,22 +78,29 @@ Return exactly this structure:
   "summary": <string>
 }
 
-severity scale: 1=mild/self-care, 2=monitor closely, 3=see a doctor soon, 4=urgent care today, 5=emergency/call 911
+severity scale: 1=general curiosity, 2=mild discomfort, 3=moderate concern, 4=significant issue, 5=seek professional help
 
 bodyRegion must be exactly one of: head, neck, chest, abdomen, lower_back, upper_back, left_arm, right_arm, left_leg, right_leg
 
-redFlags: list any alarm symptoms present (e.g. chest pain, difficulty breathing, sudden severe headache). Empty array if none.
+redFlags: list any serious concerns mentioned. Empty array if none.
 
-summary: one sentence describing the patient's main complaint and context.`
+summary: one sentence describing which muscles or area the user wants to understand.`
 
-const NARRATION_SYSTEM = `You are Oso, a warm and knowledgeable health companion bear. Write a short 2-3 sentence educational narration about the given body region in the context of the user's symptoms. Use plain, friendly language. Be reassuring but accurate. Do not diagnose. End with encouragement to consult a healthcare provider if symptoms persist.`
+const NARRATION_SYSTEM = `You are Oso, a friendly muscle educator bear. Write a short 2-3 sentence educational narration about the muscles in the given body region relevant to the user's interest. Use plain, enthusiastic language. Focus on how those muscles work, what movements they enable, and why they matter. Keep it engaging and educational.`
+
+const sanitize = (text) => text.replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim()
 
 // Convert { role: 'user'|'assistant', content } → Gemini { role: 'user'|'model', parts }
-function toGeminiContents(messages) {
-  return messages.map(m => ({
+// Gemma doesn't support systemInstruction, so prepend it to the first user message.
+function toGeminiContents(messages, systemPrompt) {
+  const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }))
+  if (systemPrompt && contents.length > 0 && contents[0].role === 'user') {
+    contents[0].parts[0].text = `${systemPrompt}\n\n${contents[0].parts[0].text}`
+  }
+  return contents
 }
 
 app.post('/api/chat', async (req, res) => {
@@ -98,11 +109,10 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: toGeminiContents(messages),
-      config: { systemInstruction: CHAT_SYSTEM },
+      model: GEMMA_MODEL,
+      contents: toGeminiContents(messages, CHAT_SYSTEM),
     })
-    res.json({ text: response.text })
+    res.json({ text: sanitize(response.text) })
   } catch (err) {
     console.error('/api/chat error:', err.message)
     res.status(500).json({ error: 'Chat failed' })
@@ -119,14 +129,12 @@ app.post('/api/triage', async (req, res) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: `Symptom conversation:\n\n${transcript}`,
-      config: {
-        systemInstruction: TRIAGE_SYSTEM,
-        responseMimeType: 'application/json',
-      },
+      model: GEMMA_MODEL,
+      contents: `${TRIAGE_SYSTEM}\n\nSymptom conversation:\n\n${transcript}`,
     })
-    res.json(JSON.parse(response.text))
+    const parsed = JSON.parse(response.text)
+    if (parsed.summary) parsed.summary = sanitize(parsed.summary)
+    res.json(parsed)
   } catch (err) {
     console.error('/api/triage error:', err.message)
     res.status(500).json({ error: 'Triage failed' })
@@ -139,11 +147,10 @@ app.post('/api/narration', async (req, res) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: `Body region: ${bodyRegion}\nSymptom context: ${symptomSummary || 'general discomfort'}`,
-      config: { systemInstruction: NARRATION_SYSTEM },
+      model: GEMMA_MODEL,
+      contents: `${NARRATION_SYSTEM}\n\nBody region: ${bodyRegion}\nSymptom context: ${symptomSummary || 'general discomfort'}`,
     })
-    res.json({ text: response.text })
+    res.json({ text: sanitize(response.text) })
   } catch (err) {
     console.error('/api/narration error:', err.message)
     res.status(500).json({ error: 'Narration failed' })

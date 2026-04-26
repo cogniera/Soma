@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { chat, muscleStory } from '../../services/claude'
 import { speak, stopSpeaking } from '../../services/elevenlabs'
-import VoiceButton from '../../components/VoiceButton/VoiceButton'
 import osoIdle from '../../assets/oso-idle.png'
 import osoSpeak from '../../assets/oso-speak.png'
 import VoxelBrain from '../../components/bodyman/VoxelBrain'
@@ -9,8 +8,6 @@ import VoxelBrain from '../../components/bodyman/VoxelBrain'
 const BEAR_IMG = { idle: osoIdle, speak: osoSpeak }
 const MAX_TURNS = 4
 
-const FIRST_QUESTION =
-  "I'm sorry you're not feeling well. Let's figure this out together - can you tell me exactly where you're feeling it and how long it's been going on?"
 
 // ── Bear avatar components ────────────────────────────────────
 
@@ -105,7 +102,7 @@ function Popup({ symptomText, onClose, onOsoMood }) {
   return (
     <div
       className="qna-popup-backdrop"
-      onClick={(e) => { if (e.target === e.currentTarget) close() }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) close() }}
       role="dialog"
       aria-modal="true"
     >
@@ -123,9 +120,7 @@ function Popup({ symptomText, onClose, onOsoMood }) {
           </svg>
         </button>
 
-        <div style={{ width: '100%', height: '100%' }}>
-          <VoxelBrain />
-        </div>
+        <VoxelBrain style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
       </div>
     </div>
   )
@@ -133,11 +128,9 @@ function Popup({ symptomText, onClose, onOsoMood }) {
 
 // ── Main component ────────────────────────────────────────────
 export default function QnA({ symptomText, onComplete, onOsoMood }) {
-  const [messages,  setMessages]  = useState([
-    { role: 'assistant', text: FIRST_QUESTION },
-  ])
+  const [messages,  setMessages]  = useState([{ role: 'user', text: symptomText }])
   const [input,     setInput]     = useState('')
-  const [loading,   setLoading]   = useState(false)
+  const [loading,   setLoading]   = useState(true)
   const [turns,     setTurns]     = useState(0)
   const [bearState, setBearState] = useState('speak')
   const [popupOpen, setPopupOpen] = useState(false)
@@ -148,10 +141,29 @@ export default function QnA({ symptomText, onComplete, onOsoMood }) {
     : messages.reduce((last, m, i) => m.role === 'assistant' ? i : last, -1)
 
   useEffect(() => {
-    onOsoMood?.('speak')
-    speak(FIRST_QUESTION, {
-      onEnd: () => { setBearState('idle'); onOsoMood?.('idle') },
-    })
+    let cancelled = false
+    async function greet() {
+      onOsoMood?.('speak')
+      try {
+        const opening = await chat([
+          { role: 'user', content: symptomText },
+        ])
+        if (cancelled) return
+        setMessages(prev => [...prev, { role: 'assistant', text: opening }])
+        setLoading(false)
+        await speak(opening, {
+          onEnd: () => { setBearState('idle'); onOsoMood?.('idle') },
+        })
+      } catch {
+        if (cancelled) return
+        setMessages(prev => [...prev, { role: 'assistant', text: "Great question! Let's explore the muscles involved. Can you tell me a bit more about the movement or area you're curious about?" }])
+        setLoading(false)
+        setBearState('idle')
+        onOsoMood?.('idle')
+      }
+    }
+    greet()
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
@@ -169,7 +181,6 @@ export default function QnA({ symptomText, onComplete, onOsoMood }) {
     onOsoMood?.('speak')
 
     const history = [
-      { role: 'user', content: `My symptom: ${symptomText}` },
       ...messages.map(m => ({
         role: m.role === 'assistant' ? 'assistant' : 'user',
         content: m.text,
@@ -197,7 +208,6 @@ export default function QnA({ symptomText, onComplete, onOsoMood }) {
     if (newTurns >= MAX_TURNS) {
       setTimeout(() => {
         const fullHistory = [
-          { role: 'user', content: `My symptom: ${symptomText}` },
           ...messages.map(m => ({
             role: m.role === 'assistant' ? 'assistant' : 'user',
             content: m.text,
@@ -228,17 +238,6 @@ export default function QnA({ symptomText, onComplete, onOsoMood }) {
               <div className="bubble-col">
                 <div className="bubble-body">{m.text}</div>
 
-                {/* Expand button — only on Oso messages, not while loading */}
-                {m.role === 'assistant' && !loading && (
-                  <button
-                    className="bubble-expand-btn"
-                    onClick={() => setPopupOpen(true)}
-                    aria-label="Open visual"
-                  >
-                    <ExpandIcon />
-                    <span>Click to see visual</span>
-                  </button>
-                )}
               </div>
             </div>
           ))}
@@ -273,7 +272,13 @@ export default function QnA({ symptomText, onComplete, onOsoMood }) {
               }}
               disabled={loading}
             />
-            <VoiceButton onFinal={t => send(t)} disabled={loading} />
+            <button
+              className="outline-btn"
+              onClick={() => setPopupOpen(true)}
+              disabled={loading}
+            >
+              Visualize
+            </button>
             <button
               className="send-icon-btn"
               onClick={() => send(input)}

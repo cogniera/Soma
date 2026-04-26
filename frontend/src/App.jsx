@@ -9,6 +9,7 @@ import Triage     from './screens/Triage/Triage'
 import BodyMap    from './screens/BodyMap/BodyMap'
 import Anatomy    from './screens/Anatomy/Anatomy'
 import OsoCorner  from './components/OsoCorner/OsoCorner'
+import VoxelBrain from './components/bodyman/VoxelBrain'
 
 // Phase flow: intro → landing → symptom → qna → triage → bodymap → anatomy
 // On refresh: skip intro, start at landing (sessionStorage flag)
@@ -46,11 +47,17 @@ export default function App() {
   }, [])
 
   const onLandingChat    = useCallback(() => setPhase('symptom'), [])
-  const onLandingExplore = useCallback(() => setPhase('bodymap'), [])
+  const onLandingExplore = useCallback(() => setPhase('visual'), [])
+  const onLandingVisual  = useCallback(() => setPhase('visual'), [])
 
   const onSymptomSubmit = useCallback((symptomText) => {
     merge({ symptomText })
     setPhase('qna')
+  }, [])
+
+  const onSymptomVisual = useCallback((symptomText) => {
+    merge({ symptomText })
+    setPhase('visual')
   }, [])
 
   const onQnAComplete = useCallback((conversation) => {
@@ -93,7 +100,7 @@ export default function App() {
 
       {phase === 'symptom' && (
         <div className="screen-wrap" key="symptom">
-          <SymptomInput onSubmit={onSymptomSubmit} />
+          <SymptomInput onSubmit={onSymptomSubmit} onVisual={onSymptomVisual} />
         </div>
       )}
 
@@ -125,6 +132,17 @@ export default function App() {
             onConfirm={onRegionConfirm}
             onOsoMood={setOsoMood}
           />
+        </div>
+      )}
+
+      {phase === 'visual' && (
+        <div className="screen-wrap screen-wrap--full" key="visual">
+          <div style={{ position: 'fixed', inset: 0 }}>
+            <VoxelBrain />
+            <div style={{ position: 'absolute', bottom: 24, left: 24 }}>
+              <button className="outline-btn" onClick={restart}>← Back</button>
+            </div>
+          </div>
         </div>
       )}
 
