@@ -4,6 +4,7 @@ import { speak, stopSpeaking } from '../../services/elevenlabs'
 import VoiceButton from '../../components/VoiceButton/VoiceButton'
 import osoIdle from '../../assets/oso-idle.png'
 import osoSpeak from '../../assets/oso-speak.png'
+import VoxelBrain from '../../components/bodyman/VoxelBrain'
 
 const BEAR_IMG = { idle: osoIdle, speak: osoSpeak }
 const MAX_TURNS = 4
@@ -108,11 +109,12 @@ function Popup({ symptomText, onClose, onOsoMood }) {
       role="dialog"
       aria-modal="true"
     >
-      <div className="qna-popup-box">
+      <div className="qna-popup-box" style={{ position: 'relative', overflow: 'hidden' }}>
         <button
           className="qna-popup-close"
           onClick={close}
           aria-label="Close"
+          style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M4 4l10 10M14 4L4 14"
@@ -121,47 +123,8 @@ function Popup({ symptomText, onClose, onOsoMood }) {
           </svg>
         </button>
 
-        <div className="muscle-story">
-          <p className="muscle-story-eyebrow">Anatomy walkthrough</p>
-          <h3 className="muscle-story-title">Muscles in your story</h3>
-
-          {loading && (
-            <div className="muscle-story-loading">
-              <div className="triage-spinner" />
-              <p>Building your visual…</p>
-            </div>
-          )}
-
-          {error && !loading && (
-            <p className="muscle-story-error">
-              Couldn't build the story right now. Please try again.
-            </p>
-          )}
-
-          {story && story.length > 0 && (
-            <ol className="muscle-story-list">
-              {story.map(s => (
-                <li
-                  key={`${s.index}-${s.muscle}`}
-                  className={`muscle-story-item${playingIndex === s.index ? ' is-playing' : ''}`}
-                >
-                  <span className="muscle-story-index">{s.index}</span>
-                  <div className="muscle-story-body">
-                    <div className="muscle-story-name">
-                      {s.muscle}
-                    </div>
-                    <p className="muscle-story-script">{s.script}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-
-          {story && story.length === 0 && !loading && (
-            <p className="muscle-story-error">
-              No muscle story could be generated for that prompt.
-            </p>
-          )}
+        <div style={{ width: '100%', height: '100%' }}>
+          <VoxelBrain />
         </div>
       </div>
     </div>
