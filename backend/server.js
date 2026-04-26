@@ -9,7 +9,19 @@ app.use(express.json())
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 const MODEL = 'gemini-2.0-flash'
+const GEMMA_MODEL = 'gemma-3-27b-it'
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'oEQ6y2Z3RRGa3doHtAB5'
+
+// Muscles available in the 3D model. Gemma must pick from these EXACT names.
+const MUSCLE_LIST = [
+  'Face', 'Eye_muscles', 'Neck', 'Upper_Trap', 'Lower_Trap',
+  'Chest', 'Core', 'Obliques', 'Back',
+  'Front_Delt', 'Side_Delt', 'Rear_Delt',
+  'Biceps', 'Triceps', 'Forearm', 'Hand',
+  'Glutes_Hip',
+  'Quads', 'Hamstrings', 'Adductors', 'IT_Band',
+  'Lower_leg', 'Foot',
+]
 
 const CHAT_SYSTEM = `You are Oso, a warm and compassionate AI health companion bear for SOMA — a health app that helps people understand their symptoms. You are caring, calm, and reassuring.
 
@@ -101,6 +113,58 @@ app.post('/api/narration', async (req, res) => {
   }
 })
 
+app.post('/api/muscle-story', async (req, res) => {
+  const { symptomText } = req.body
+  if (!symptomText) return res.status(400).json({ error: 'symptomText required' })
+
+  const prompt = `You are a knowledgeable, friendly anatomy guide. A user described this concern:
+
+"${symptomText}"
+
+Pick the muscles most relevant to that concern from the list below, and walk through them one at a time as a single coherent educational story. Order them so the explanation flows naturally — proximal to distal, cause to effect, or by anatomical chain — and have each muscle's narration build on the one before it.
+
+Allowed muscle names (use these EXACT spellings, case-sensitive — do not invent new ones):
+${MUSCLE_LIST.join(', ')}
+
+Pick between 3 and 7 muscles. Return ONLY a valid JSON array — no prose, no markdown fences, no commentary — with this exact shape:
+
+[
+  { "muscle": "<one of the names above>", "script": "<2-3 sentences spoken aloud, tying this muscle to the user's concern and continuing the story>", "index": <1-based position in the story> }
+]`
+
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMMA_MODEL,
+      contents: prompt,
+    })
+
+    let text = (response.text ?? '').trim()
+    // Strip ```json fences if Gemma wraps the array
+    if (text.startsWith('```')) {
+      text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
+    }
+    // If Gemma added prose, grab the first JSON array
+    const arrMatch = text.match(/\[[\s\S]*\]/)
+    if (arrMatch) text = arrMatch[0]
+
+    const parsed = JSON.parse(text)
+    const muscleSet = new Set(MUSCLE_LIST)
+    const story = (Array.isArray(parsed) ? parsed : [])
+      .filter(s => s && muscleSet.has(s.muscle) && typeof s.script === 'string')
+      .map((s, i) => ({
+        muscle: s.muscle,
+        script: s.script,
+        index: Number.isInteger(s.index) ? s.index : i + 1,
+      }))
+      .sort((a, b) => a.index - b.index)
+
+    res.json({ story })
+  } catch (err) {
+    console.error('/api/muscle-story error:', err.message)
+    res.status(500).json({ error: 'Muscle story failed' })
+  }
+})
+
 app.post('/api/speak', async (req, res) => {
   const { text } = req.body
   if (!text) return res.status(400).json({ error: 'text required' })
@@ -157,4 +221,9 @@ app.post('/api/speak', async (req, res) => {
       if (!res.headersSent) res.status(500).json({ error: 'TTS failed' })
     }
   }
+})
+
+const PORT = process.env.PORT || 3001
+app.listen(PORT, () => {
+  console.log(`Soma backend listening on http://localhost:${PORT}`)
 })

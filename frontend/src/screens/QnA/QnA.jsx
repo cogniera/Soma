@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { chat } from '../../services/claude'
+import { chat, muscleStory } from '../../services/claude'
 import { speak } from '../../services/elevenlabs'
 import VoiceButton from '../../components/VoiceButton/VoiceButton'
 import osoIdle from '../../assets/oso-idle.png'
@@ -43,13 +43,28 @@ function ExpandIcon() {
 }
 
 // ── White-box Popup ───────────────────────────────────────────
-function Popup({ onClose }) {
-  // Trap focus and close on Escape
+// Uses ONLY the initial symptom prompt (not the chat history) to build a
+// muscle-by-muscle anatomy story via Gemma.
+function Popup({ symptomText, onClose }) {
+  const [story, setStory]     = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    muscleStory(symptomText)
+      .then(s => { if (!cancelled) { setStory(s); setLoading(false) } })
+      .catch(err => { if (!cancelled) { setError(err.message); setLoading(false) } })
+    return () => { cancelled = true }
+  }, [symptomText])
 
   return (
     <div
@@ -70,6 +85,46 @@ function Popup({ onClose }) {
               strokeLinecap="round" />
           </svg>
         </button>
+
+        <div className="muscle-story">
+          <p className="muscle-story-eyebrow">Anatomy walkthrough</p>
+          <h3 className="muscle-story-title">Muscles in your story</h3>
+
+          {loading && (
+            <div className="muscle-story-loading">
+              <div className="triage-spinner" />
+              <p>Building your visual…</p>
+            </div>
+          )}
+
+          {error && !loading && (
+            <p className="muscle-story-error">
+              Couldn't build the story right now. Please try again.
+            </p>
+          )}
+
+          {story && story.length > 0 && (
+            <ol className="muscle-story-list">
+              {story.map(s => (
+                <li key={`${s.index}-${s.muscle}`} className="muscle-story-item">
+                  <span className="muscle-story-index">{s.index}</span>
+                  <div className="muscle-story-body">
+                    <div className="muscle-story-name">
+                      {s.muscle.replace(/_/g, ' ')}
+                    </div>
+                    <p className="muscle-story-script">{s.script}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {story && story.length === 0 && !loading && (
+            <p className="muscle-story-error">
+              No muscle story could be generated for that prompt.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -234,7 +289,12 @@ export default function QnA({ symptomText, onComplete, onOsoMood }) {
         )}
       </div>
 
-      {popupOpen && <Popup onClose={() => setPopupOpen(false)} />}
+      {popupOpen && (
+        <Popup
+          symptomText={symptomText}
+          onClose={() => setPopupOpen(false)}
+        />
+      )}
     </>
   )
 }

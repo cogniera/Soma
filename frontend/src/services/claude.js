@@ -19,6 +19,17 @@ export async function triage(conversation) {
   return res.json()
 }
 
+export async function muscleStory(symptomText) {
+  const res = await fetch('/api/muscle-story', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ symptomText }),
+  })
+  if (!res.ok) throw new Error(`Muscle story error ${res.status}`)
+  const { story } = await res.json()
+  return story
+}
+
 export async function anatomyNarration(bodyRegion, symptomSummary) {
   const res = await fetch('/api/narration', {
     method: 'POST',
