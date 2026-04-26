@@ -30,31 +30,13 @@ function VisualPanel({ storyTrigger, bearState, onBearPosition }) {
   }, [bearState])
 
   return (
-    <div
-      className="qna-popup-backdrop"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) close() }}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="qna-popup-box" style={{ position: 'relative', overflow: 'hidden' }}>
-        <button
-          className="qna-popup-close"
-          onClick={close}
-          aria-label="Close"
-          style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M4 4l10 10M14 4L4 14"
-              stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" />
-          </svg>
-        </button>
-
-        <VoxelBrain
-          focusGroup={focusGroup}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-        />
-      </div>
+    <div className="qna-visual-panel">
+      <VoxelBrain
+        focusGroup={focusGroup}
+        autoRotate={bearState === 'idle'}
+        style={{ width: '100%', height: '100%' }}
+        onBearPosition={onBearPosition}
+      />
     </div>
   )
 }
@@ -71,17 +53,18 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
   const bottomRef   = useRef(null)
   const typeTimer   = useRef(null)
 
-  const typeInto = (text, duration) => {
+  const typeInto = (base, newSegment, duration) => {
     clearInterval(typeTimer.current)
-    if (!duration || duration <= 0) return
-    const chars = text.length
+    if (!duration || duration <= 0) { stopTyping(base + (base ? ' ' : '') + newSegment); return }
+    const prefix = base + (base ? ' ' : '')
+    const chars = newSegment.length
     const delay = (duration * 1000) / chars
     let i = 0
     typeTimer.current = setInterval(() => {
       i++
       setMessages(prev => {
         const next = [...prev]
-        next[next.length - 1] = { ...next[next.length - 1], text: text.slice(0, i) }
+        next[next.length - 1] = { ...next[next.length - 1], text: prefix + newSegment.slice(0, i) }
         return next
       })
       if (i >= chars) clearInterval(typeTimer.current)
@@ -101,36 +84,23 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
     const story = await muscleStory(triggerText)
     if (cancelled?.() || !story?.length) return
 
-    // type the chat reply in sync with the total narration duration
-    const totalChars = chatReply.length
-    let charsSoFar = 0
+    let accumulated = ''
 
     for (const item of story) {
       if (cancelled?.()) break
       setStoryTrigger(item.script)
-      await speak(item.script, {
+      const scriptText = item.script
+      await speak(scriptText, {
         onDuration: (dur) => {
-          // portion of chat reply to type during this segment
-          const segChars = Math.round((item.script.length / story.reduce((s, i) => s + i.script.length, 0)) * totalChars)
-          const start = charsSoFar
-          const end = Math.min(charsSoFar + segChars, totalChars)
-          charsSoFar = end
-          const delay = dur ? (dur * 1000) / (end - start) : 30
-          let i = start
-          clearInterval(typeTimer.current)
-          typeTimer.current = setInterval(() => {
-            i++
-            setMessages(prev => {
-              const next = [...prev]
-              next[next.length - 1] = { ...next[next.length - 1], text: chatReply.slice(0, i) }
-              return next
-            })
-            if (i >= end) clearInterval(typeTimer.current)
-          }, delay)
+          const base = accumulated
+          typeInto(base, scriptText, dur)
+        },
+        onEnd: () => {
+          accumulated += (accumulated ? ' ' : '') + scriptText
+          stopTyping(accumulated)
         },
       })
     }
-    if (!cancelled?.()) stopTyping(chatReply)
   }
 
   useEffect(() => {
@@ -290,7 +260,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
       </div>
 
       {/* Right: always-on visual panel */}
-      <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', overflow: 'hidden', width: '100%', height: '100%' }}>
         <VisualPanel storyTrigger={storyTrigger} bearState={bearState} onBearPosition={setBearPos} />
         {bearPos && (
           <img
