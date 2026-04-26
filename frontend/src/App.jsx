@@ -88,9 +88,7 @@ export default function App() {
       )}
 
       {phase === 'landing' && (
-        <div className="screen-wrap" key="landing">
-          <Landing onChat={onLandingChat} onExplore={onLandingExplore} />
-        </div>
+        <Landing onChat={onLandingChat} onExplore={onLandingExplore} />
       )}
 
       {phase === 'symptom' && (
