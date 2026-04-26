@@ -2,11 +2,40 @@ import { useState, useEffect, useRef } from 'react'
 import { chat, muscleStory, muscleFocus } from '../../services/claude'
 import { speak, stopSpeaking, prefetchAudio } from '../../services/elevenlabs'
 import osoIdle from '../../assets/oso-idle.png'
-import osoSpeak from '../../assets/oso-speak.png'
+import frame01 from '../../assets/Screenshot_2026-04-26_074235-removebg-preview.png'
+import frame02 from '../../assets/Screenshot_2026-04-26_074244-removebg-preview.png'
+import frame03 from '../../assets/Screenshot_2026-04-26_074256-removebg-preview.png'
+import frame04 from '../../assets/Screenshot_2026-04-26_074303-removebg-preview.png'
+import frame05 from '../../assets/Screenshot_2026-04-26_074311-removebg-preview.png'
+import frame06 from '../../assets/Screenshot_2026-04-26_074339-removebg-preview.png'
+import frame07 from '../../assets/Screenshot_2026-04-26_074348-removebg-preview.png'
+import frame08 from '../../assets/Screenshot_2026-04-26_074353-removebg-preview.png'
+import frame09 from '../../assets/Screenshot_2026-04-26_074358-removebg-preview.png'
+import frame10 from '../../assets/Screenshot_2026-04-26_074420-removebg-preview.png'
+import frame11 from '../../assets/Screenshot_2026-04-26_074427-removebg-preview.png'
+import frame12 from '../../assets/Screenshot_2026-04-26_074431-removebg-preview.png'
+import frame13 from '../../assets/Screenshot_2026-04-26_074448-removebg-preview.png'
+import frame14 from '../../assets/Screenshot_2026-04-26_074513-removebg-preview.png'
+import frame15 from '../../assets/Screenshot_2026-04-26_074521-removebg-preview.png'
+import frame17 from '../../assets/Screenshot_2026-04-26_074558-removebg-preview.png'
+import frame18 from '../../assets/Screenshot_2026-04-26_074607-removebg-preview.png'
+import frame19 from '../../assets/Screenshot_2026-04-26_074613-removebg-preview.png'
+import frame20 from '../../assets/Screenshot_2026-04-26_074618-removebg-preview.png'
+import frame21 from '../../assets/Screenshot_2026-04-26_074623-removebg-preview.png'
+import frame22 from '../../assets/Screenshot_2026-04-26_074627-removebg-preview.png'
+import frame23 from '../../assets/Screenshot_2026-04-26_074632-removebg-preview.png'
+import frame24 from '../../assets/Screenshot_2026-04-26_074637-removebg-preview.png'
 import VoxelBrain from '../../components/bodyman/VoxelBrain'
 import VoiceButton from '../../components/VoiceButton/VoiceButton'
 
-const BEAR_IMG = { idle: osoIdle, speak: osoSpeak }
+const SPEAK_FRAMES = [
+  frame01, frame02, frame03, frame04, frame05, frame06,
+  frame07, frame08, frame09, frame10, frame11, frame12,
+  frame13, frame14, frame15, frame17, frame18,
+  frame19, frame20, frame21, frame22, frame23, frame24,
+]
+const FRAME_RATE = 400 // ms per frame (~2.5fps)
+
 const MAX_TURNS = 4
 
 // ── Side panel: muscle visualizer ────────────────────────────
@@ -50,8 +79,22 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
   const [bearState,     setBearState]     = useState('speak')
   const [storyTrigger,  setStoryTrigger]  = useState(symptomText)
   const [bearPos,       setBearPos]       = useState(null)
+  const [frameIdx,      setFrameIdx]      = useState(0)
   const bottomRef   = useRef(null)
   const typeTimer   = useRef(null)
+  const frameTimer  = useRef(null)
+
+  useEffect(() => {
+    if (bearState === 'speak') {
+      frameTimer.current = setInterval(() => {
+        setFrameIdx(i => (i + 1) % SPEAK_FRAMES.length)
+      }, FRAME_RATE)
+    } else {
+      clearInterval(frameTimer.current)
+      setFrameIdx(0)
+    }
+    return () => clearInterval(frameTimer.current)
+  }, [bearState])
 
   const typeInto = (base, newSegment, duration) => {
     clearInterval(typeTimer.current)
@@ -273,7 +316,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
         <VisualPanel storyTrigger={storyTrigger} bearState={bearState} onBearPosition={setBearPos} />
         {bearPos && (
           <img
-            src={BEAR_IMG[bearState] || BEAR_IMG.idle}
+            src={bearState === 'speak' ? (SPEAK_FRAMES[frameIdx] ?? osoIdle) : osoIdle}
             alt="Oso"
             className={`qna-bear-img${bearState === 'speak' ? ' is-speaking' : ''}`}
             draggable={false}
