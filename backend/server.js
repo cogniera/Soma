@@ -12,16 +12,53 @@ const MODEL = 'gemini-2.0-flash'
 const GEMMA_MODEL = 'gemma-3-27b-it'
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'oEQ6y2Z3RRGa3doHtAB5'
 
-// Muscles available in the 3D model. Gemma must pick from these EXACT names.
-const MUSCLE_LIST = [
-  'Face', 'Eye_muscles', 'Neck', 'Upper_Trap', 'Lower_Trap',
-  'Chest', 'Core', 'Obliques', 'Back',
-  'Front_Delt', 'Side_Delt', 'Rear_Delt',
-  'Biceps', 'Triceps', 'Forearm', 'Hand',
-  'Glutes_Hip',
-  'Quads', 'Hamstrings', 'Adductors', 'IT_Band',
-  'Lower_leg', 'Foot',
+// Muscles available in the 3D model, grouped by region. Gemma must pick from
+// these EXACT names (the underscore form is what maps to the model meshes).
+const MUSCLE_GROUPS = [
+  { region: 'Head & Neck', muscles: [
+    { name: 'Face',         desc: 'facial muscles' },
+    { name: 'Eye_muscles',  desc: 'extraocular eye muscles' },
+    { name: 'Neck',         desc: 'cervical / neck muscles' },
+    { name: 'Upper_Trap',   desc: 'upper trapezius — the thick part running up to the neck' },
+    { name: 'Lower_Trap',   desc: 'lower trapezius — the wide part across the upper back' },
+  ]},
+  { region: 'Torso', muscles: [
+    { name: 'Chest',        desc: 'pectorals' },
+    { name: 'Core',         desc: 'rectus abdominis / abs' },
+    { name: 'Obliques',     desc: 'sides of the stomach' },
+    { name: 'Back',         desc: 'lats and spinal erectors' },
+  ]},
+  { region: 'Shoulders', muscles: [
+    { name: 'Front_Delt',   desc: 'anterior deltoid' },
+    { name: 'Side_Delt',    desc: 'lateral deltoid' },
+    { name: 'Rear_Delt',    desc: 'posterior deltoid' },
+  ]},
+  { region: 'Arms', muscles: [
+    { name: 'Biceps',       desc: 'brachialis only — note: no biceps brachii mesh in the model' },
+    { name: 'Triceps',      desc: 'triceps brachii' },
+    { name: 'Forearm',      desc: 'forearm flexors and extensors' },
+    { name: 'Hand',         desc: 'intrinsic hand muscles' },
+  ]},
+  { region: 'Hips & Glutes', muscles: [
+    { name: 'Glutes_Hip',   desc: 'glutes, piriformis, and hip flexors' },
+  ]},
+  { region: 'Upper Leg', muscles: [
+    { name: 'Quads',        desc: 'quadriceps — front of the thigh' },
+    { name: 'Hamstrings',   desc: 'hamstrings — back of the thigh' },
+    { name: 'Adductors',    desc: 'inner thigh' },
+    { name: 'IT_Band',      desc: 'iliotibial band — lateral side of the thigh' },
+  ]},
+  { region: 'Lower Leg & Foot', muscles: [
+    { name: 'Lower_leg',    desc: 'calves and tibialis' },
+    { name: 'Foot',         desc: 'foot muscles' },
+  ]},
 ]
+
+const MUSCLE_LIST = MUSCLE_GROUPS.flatMap(g => g.muscles.map(m => m.name))
+
+const MUSCLE_CATALOG = MUSCLE_GROUPS
+  .map(g => `${g.region}:\n${g.muscles.map(m => `  - ${m.name} (${m.desc})`).join('\n')}`)
+  .join('\n\n')
 
 const CHAT_SYSTEM = `You are Oso, a warm and compassionate AI health companion bear for SOMA — a health app that helps people understand their symptoms. You are caring, calm, and reassuring.
 
@@ -123,8 +160,9 @@ app.post('/api/muscle-story', async (req, res) => {
 
 Pick the muscles most relevant to that concern from the list below, and walk through them one at a time as a single coherent educational story. Order them so the explanation flows naturally — proximal to distal, cause to effect, or by anatomical chain — and have each muscle's narration build on the one before it.
 
-Allowed muscle names (use these EXACT spellings, case-sensitive — do not invent new ones):
-${MUSCLE_LIST.join(', ')}
+Allowed muscle names — use these EXACT spellings (case-sensitive, with underscores). Do not invent new ones, do not change capitalization, do not replace underscores with spaces. The parenthetical descriptions are only to help you choose; the JSON "muscle" field MUST be the exact name on the left:
+
+${MUSCLE_CATALOG}
 
 Pick between 3 and 7 muscles. Return ONLY a valid JSON array — no prose, no markdown fences, no commentary — with this exact shape:
 
