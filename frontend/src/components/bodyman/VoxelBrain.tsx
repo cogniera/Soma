@@ -264,6 +264,26 @@ function computeGroupFocus(groupName: string): { center: THREE.Vector3; dir: THR
   return { center: sum, dir };
 }
 
+let _bodyYBounds: { min: number; max: number } | null = null;
+function getBodyYBounds(): { min: number; max: number } {
+  if (_bodyYBounds) return _bodyYBounds;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const entry of buildGroupGrids()) {
+    const half = entry.grid.voxelSize * 0.5;
+    for (const c of entry.grid.cells) {
+      if (c.y - half < min) min = c.y - half;
+      if (c.y + half > max) max = c.y + half;
+    }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    _bodyYBounds = { min: -Infinity, max: Infinity };
+  } else {
+    _bodyYBounds = { min, max };
+  }
+  return _bodyYBounds;
+}
+
 type FlyState = {
   active: boolean;
   target: THREE.Vector3;
@@ -326,6 +346,8 @@ function Man({ focusGroup, flyState, orbitRef }: ManProps) {
     if (fly.active && !fly.arrived) {
       const t = 1 - Math.exp(-FLY_SPEED * dt);
       camera.position.lerp(fly.camTarget, t);
+      const { min: yMin, max: yMax } = getBodyYBounds();
+      camera.position.y = Math.max(yMin, Math.min(yMax, camera.position.y));
       if (orbitRef.current) {
         orbitRef.current.target.lerp(fly.target, t);
         orbitRef.current.update();
@@ -406,6 +428,8 @@ function Scene({ focusGroup, autoRotate = false }: SceneProps) {
       const focus = computeGroupFocus(focusGroup);
       if (focus) {
         const camPos = focus.center.clone().addScaledVector(focus.dir, FLY_ZOOM_DISTANCE);
+        const { min: yMin, max: yMax } = getBodyYBounds();
+        camPos.y = Math.max(yMin, Math.min(yMax, camPos.y));
         flyState.current = { active: true, arrived: false, target: focus.center.clone(), camTarget: camPos };
         if (orbitRef.current) orbitRef.current.enabled = false;
       }

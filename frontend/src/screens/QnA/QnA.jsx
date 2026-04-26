@@ -126,7 +126,10 @@ function Popup({ symptomText, onClose, onOsoMood }) {
           </svg>
         </button>
 
-        <VoxelBrain style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+        <VoxelBrain
+          focusGroup={focusGroup}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
       </div>
     </div>
   )
