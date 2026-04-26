@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { chat, muscleStory } from '../../services/claude'
-import { speak } from '../../services/elevenlabs'
+import { speak, stopSpeaking } from '../../services/elevenlabs'
 import VoiceButton from '../../components/VoiceButton/VoiceButton'
 import osoIdle from '../../assets/oso-idle.png'
 import osoSpeak from '../../assets/oso-speak.png'
@@ -44,17 +44,26 @@ function ExpandIcon() {
 
 // ── White-box Popup ───────────────────────────────────────────
 // Uses ONLY the initial symptom prompt (not the chat history) to build a
-// muscle-by-muscle anatomy story via Gemma.
-function Popup({ symptomText, onClose }) {
+// muscle-by-muscle anatomy story via Gemma. Each script is then spoken
+// aloud via ElevenLabs in story order.
+function Popup({ symptomText, onClose, onOsoMood }) {
   const [story, setStory]     = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
+  const [playingIndex, setPlayingIndex] = useState(null)
+
+  // Close cleanly: stop any in-flight audio and reset Oso.
+  const close = () => {
+    stopSpeaking()
+    onOsoMood?.('idle')
+    onClose()
+  }
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e) => { if (e.key === 'Escape') close() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -66,17 +75,43 @@ function Popup({ symptomText, onClose }) {
     return () => { cancelled = true }
   }, [symptomText])
 
+  // Play each script sequentially through ElevenLabs once the story arrives.
+  useEffect(() => {
+    if (!story || story.length === 0) return
+    let cancelled = false
+
+    ;(async () => {
+      onOsoMood?.('speak')
+      for (const item of story) {
+        if (cancelled) break
+        setPlayingIndex(item.index)
+        await speak(item.script)
+      }
+      if (!cancelled) {
+        setPlayingIndex(null)
+        onOsoMood?.('idle')
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      stopSpeaking()
+      setPlayingIndex(null)
+      onOsoMood?.('idle')
+    }
+  }, [story])
+
   return (
     <div
       className="qna-popup-backdrop"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => { if (e.target === e.currentTarget) close() }}
       role="dialog"
       aria-modal="true"
     >
       <div className="qna-popup-box">
         <button
           className="qna-popup-close"
-          onClick={onClose}
+          onClick={close}
           aria-label="Close"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -106,11 +141,14 @@ function Popup({ symptomText, onClose }) {
           {story && story.length > 0 && (
             <ol className="muscle-story-list">
               {story.map(s => (
-                <li key={`${s.index}-${s.muscle}`} className="muscle-story-item">
+                <li
+                  key={`${s.index}-${s.muscle}`}
+                  className={`muscle-story-item${playingIndex === s.index ? ' is-playing' : ''}`}
+                >
                   <span className="muscle-story-index">{s.index}</span>
                   <div className="muscle-story-body">
                     <div className="muscle-story-name">
-                      {s.muscle.replace(/_/g, ' ')}
+                      {s.muscle}
                     </div>
                     <p className="muscle-story-script">{s.script}</p>
                   </div>
@@ -293,6 +331,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood }) {
         <Popup
           symptomText={symptomText}
           onClose={() => setPopupOpen(false)}
+          onOsoMood={onOsoMood}
         />
       )}
     </>

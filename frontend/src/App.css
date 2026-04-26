@@ -467,6 +467,12 @@
   border: 1px solid var(--card-border);
   border-radius: 16px;
   padding: 14px 16px;
+  transition: background .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+.muscle-story-item.is-playing {
+  background: rgba(245, 166, 35, .14);
+  border-color: var(--honey);
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, .18);
 }
 .muscle-story-index {
   flex-shrink: 0;

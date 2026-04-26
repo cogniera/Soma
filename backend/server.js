@@ -168,7 +168,9 @@ Pick between 3 and 7 muscles. Return ONLY a valid JSON array — no prose, no ma
 
 [
   { "muscle": "<one of the names above>", "script": "<2-3 sentences spoken aloud, tying this muscle to the user's concern and continuing the story>", "index": <1-based position in the story> }
-]`
+]
+
+CRITICAL: the "muscle" field uses the underscored identifier (e.g. "Upper_Trap"), but the "script" field is read aloud by a text-to-speech voice — it MUST be natural English. Never include underscored identifiers like "Upper_Trap" or "Eye_muscles" in the script; write "upper trapezius" or "the muscles around your eyes" instead. Underscores are only allowed in the "muscle" field.`
 
   try {
     const response = await ai.models.generateContent({
@@ -187,11 +189,23 @@ Pick between 3 and 7 muscles. Return ONLY a valid JSON array — no prose, no ma
 
     const parsed = JSON.parse(text)
     const muscleSet = new Set(MUSCLE_LIST)
+
+    // Replace any underscored muscle identifier that leaked into the spoken
+    // script with its space-separated form (e.g. "Upper_Trap" → "Upper Trap").
+    const cleanScript = (raw) => {
+      let out = raw
+      for (const name of MUSCLE_LIST) {
+        if (!name.includes('_')) continue
+        out = out.replaceAll(name, name.replaceAll('_', ' '))
+      }
+      return out
+    }
+
     const story = (Array.isArray(parsed) ? parsed : [])
       .filter(s => s && muscleSet.has(s.muscle) && typeof s.script === 'string')
       .map((s, i) => ({
         muscle: s.muscle,
-        script: s.script,
+        script: cleanScript(s.script),
         index: Number.isInteger(s.index) ? s.index : i + 1,
       }))
       .sort((a, b) => a.index - b.index)
