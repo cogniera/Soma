@@ -74,6 +74,9 @@ function Popup({ symptomText, onClose, onOsoMood }) {
   }, [symptomText])
 
   // Play each script sequentially through ElevenLabs once the story arrives.
+  // Each item.muscle is the group name passed to VoxelBrain for camera focus.
+  const [focusGroup, setFocusGroup] = useState(null)
+
   useEffect(() => {
     if (!story || story.length === 0) return
     let cancelled = false
@@ -83,10 +86,12 @@ function Popup({ symptomText, onClose, onOsoMood }) {
       for (const item of story) {
         if (cancelled) break
         setPlayingIndex(item.index)
+        setFocusGroup(item.muscle ?? null)
         await speak(item.script)
       }
       if (!cancelled) {
         setPlayingIndex(null)
+        setFocusGroup(null)
         onOsoMood?.('idle')
       }
     })()
@@ -95,6 +100,7 @@ function Popup({ symptomText, onClose, onOsoMood }) {
       cancelled = true
       stopSpeaking()
       setPlayingIndex(null)
+      setFocusGroup(null)
       onOsoMood?.('idle')
     }
   }, [story])

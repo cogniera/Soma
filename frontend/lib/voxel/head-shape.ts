@@ -67,9 +67,27 @@ export function buildBrainGrid(): HeadGrid {
  * Per-group voxel grids produced by `scripts/voxelize-groups.mjs`.
  * Each entry is a named group (e.g. a muscle group) from the source OBJ.
  */
+// Groups to merge: { target: groups that get absorbed into it }
+const MERGE_INTO: Record<string, string> = {
+  Adductors: "Quads",
+  Biceps:    "Arms",
+  Triceps:   "Arms",
+};
+
+const EXCLUDE = new Set<string>();
+
 export function buildGroupGrids(): GroupEntry[] {
   const raw = groupCellsRaw as unknown as GroupRaw;
-  return Object.entries(raw.groups).map(([name, data]) => ({
+  const merged: Record<string, number[]> = {};
+
+  for (const [name, data] of Object.entries(raw.groups)) {
+    if (EXCLUDE.has(name)) continue;
+    const target = MERGE_INTO[name] ?? name;
+    if (merged[target]) merged[target] = merged[target].concat(data);
+    else merged[target] = [...data];
+  }
+
+  return Object.entries(merged).map(([name, data]) => ({
     name,
     grid: parseGrid({ dims: raw.dims, voxelSize: raw.voxelSize, data }),
   }));

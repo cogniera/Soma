@@ -1,7 +1,7 @@
 import { t as __commonJSMin } from "./chunk-CYJPkc-J.js";
 import { t as require_react } from "./react.js";
-import { t as require_scheduler } from "./scheduler-CWuCHEyl.js";
 import { t as require_react_dom } from "./react-dom.js";
+import { t as require_scheduler } from "./scheduler-CWuCHEyl.js";
 //#region node_modules/react-dom/cjs/react-dom-client.development.js
 /**
 * @license React
