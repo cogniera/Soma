@@ -30,12 +30,12 @@ export default function SymptomInput({ onSubmit, onVisual, onBack }) {
       </div>
 
       {/* 3D model — right half, behind content */}
-      <div style={{ position: 'fixed', top: 0, right: '0%', width: '42%', height: '100%', pointerEvents: 'none' }}>
-        <VoxelBrain autoRotate />
+      <div style={{ position: 'fixed', top: 0, right: '0%', width: '42%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
+        <VoxelBrain autoRotate style={{ pointerEvents: 'none' }} />
       </div>
 
       {/* Content — natural width, left side */}
-      <div style={{ maxWidth: 480 }}>
+      <div style={{ maxWidth: 480, position: 'relative', zIndex: 1 }}>
       <p className="chat-eyebrow">
         <span className="eyebrow-dot" />
         SOMA · Body Companion
