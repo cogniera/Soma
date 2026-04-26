@@ -69,9 +69,11 @@ export function buildBrainGrid(): HeadGrid {
  */
 // Groups to merge: { target: groups that get absorbed into it }
 const MERGE_INTO: Record<string, string> = {
-  Adductors: "Quads",
-  Biceps:    "Arms",
-  Triceps:   "Arms",
+  Adductors:  "Quads",
+  Biceps:     "Arms",
+  Triceps:    "Arms",
+  Upper_Trap: "Lower_Trap",
+  Lower_Trap: "Upper_Trap",
 };
 
 const EXCLUDE = new Set<string>();

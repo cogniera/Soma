@@ -34,8 +34,7 @@ const MUSCLE_GROUPS = [
     { name: 'Rear_Delt',    desc: 'posterior deltoid' },
   ]},
   { region: 'Arms', muscles: [
-    { name: 'Biceps',       desc: 'brachialis only — note: no biceps brachii mesh in the model' },
-    { name: 'Triceps',      desc: 'triceps brachii' },
+    { name: 'Arms',         desc: 'biceps and triceps — the full upper arm' },
     { name: 'Forearm',      desc: 'forearm flexors and extensors' },
     { name: 'Hand',         desc: 'intrinsic hand muscles' },
   ]},
@@ -43,9 +42,8 @@ const MUSCLE_GROUPS = [
     { name: 'Glutes_Hip',   desc: 'glutes, piriformis, and hip flexors' },
   ]},
   { region: 'Upper Leg', muscles: [
-    { name: 'Quads',        desc: 'quadriceps — front of the thigh' },
+    { name: 'Quads',        desc: 'quadriceps and inner thigh — front and inner thigh' },
     { name: 'Hamstrings',   desc: 'hamstrings — back of the thigh' },
-    { name: 'Adductors',    desc: 'inner thigh' },
     { name: 'IT_Band',      desc: 'iliotibial band — lateral side of the thigh' },
   ]},
   { region: 'Lower Leg & Foot', muscles: [
@@ -221,6 +219,32 @@ CRITICAL: the "muscle" field uses the underscored identifier (e.g. "Upper_Trap")
   } catch (err) {
     console.error('/api/muscle-story error:', err.message)
     res.status(500).json({ error: 'Muscle story failed' })
+  }
+})
+
+app.post('/api/muscle-focus', async (req, res) => {
+  const { text } = req.body
+  if (!text) return res.status(400).json({ error: 'text required' })
+
+  const prompt = `You are a muscle identifier. Given a sentence about muscles or anatomy, return ONLY the single most relevant muscle name from this list — no explanation, no punctuation, just the name exactly as written:
+
+${MUSCLE_LIST.join(', ')}
+
+If no muscle is clearly relevant, return the string "null".
+
+Sentence: "${text}"`
+
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMMA_MODEL,
+      contents: prompt,
+    })
+    const raw = (response.text ?? '').trim().replace(/[^a-zA-Z_]/g, '')
+    const muscle = MUSCLE_LIST.includes(raw) ? raw : null
+    res.json({ muscle })
+  } catch (err) {
+    console.error('/api/muscle-focus error:', err.message)
+    res.json({ muscle: null })
   }
 })
 

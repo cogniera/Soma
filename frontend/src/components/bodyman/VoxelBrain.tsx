@@ -297,9 +297,10 @@ type ManProps = {
   focusGroup: string | null;
   flyState: React.MutableRefObject<FlyState>;
   orbitRef: React.MutableRefObject<any>;
+  onBearPosition?: (pos: { x: number; y: number } | null) => void;
 };
 
-function Man({ focusGroup, flyState, orbitRef }: ManProps) {
+function Man({ focusGroup, flyState, orbitRef, onBearPosition }: ManProps) {
   const hoverTarget = useRef({
     center: new THREE.Vector3(0, -1000, 0),
     radius: 0,
@@ -340,7 +341,8 @@ function Man({ focusGroup, flyState, orbitRef }: ManProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { camera } = useThree();
+  const { camera, size } = useThree();
+  const bearPosRef = useRef<{ x: number; y: number } | null>(null);
 
   useFrame((_, dt) => {
     // --- Camera fly-to ---
@@ -383,6 +385,25 @@ function Man({ focusGroup, flyState, orbitRef }: ManProps) {
     sharedUniforms.uHoverRadius.value += (target.radius - sharedUniforms.uHoverRadius.value) * t2;
     sharedUniforms.uHoverStrength.value += (target.strength - sharedUniforms.uHoverStrength.value) * t2;
     sharedUniforms.uHoverCenter.value.lerp(target.center, 1 - Math.exp(-CENTER_LERP_RATE * dt));
+
+    // --- Project focused group centroid to screen for bear overlay ---
+    if (onBearPosition) {
+      if (!focusGroup) {
+        if (bearPosRef.current !== null) { bearPosRef.current = null; onBearPosition(null); }
+      } else {
+        const focus = computeGroupFocus(focusGroup);
+        if (focus) {
+          const projected = focus.center.clone().project(camera);
+          const sx = ((projected.x + 1) / 2) * size.width;
+          const sy = ((-projected.y + 1) / 2) * size.height;
+          const prev = bearPosRef.current;
+          if (!prev || Math.abs(prev.x - sx) > 1 || Math.abs(prev.y - sy) > 1) {
+            bearPosRef.current = { x: sx, y: sy };
+            onBearPosition({ x: sx, y: sy });
+          }
+        }
+      }
+    }
   });
 
   // const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
@@ -415,9 +436,10 @@ function Man({ focusGroup, flyState, orbitRef }: ManProps) {
 type SceneProps = {
   focusGroup: string | null;
   autoRotate?: boolean;
+  onBearPosition?: (pos: { x: number; y: number } | null) => void;
 };
 
-function Scene({ focusGroup, autoRotate = false }: SceneProps) {
+function Scene({ focusGroup, autoRotate = false, onBearPosition }: SceneProps) {
   const orbitRef = useRef<any>(null);
 
   const flyState = useRef<FlyState>({
@@ -458,7 +480,7 @@ function Scene({ focusGroup, autoRotate = false }: SceneProps) {
       <ambientLight intensity={1.4} />
       <directionalLight position={[-6, 8,  6]} intensity={0.6} />
       <directionalLight position={[ 6, 6, -6]} intensity={0.6} />
-      <Man focusGroup={focusGroup} flyState={flyState} orbitRef={orbitRef} />
+      <Man focusGroup={focusGroup} flyState={flyState} orbitRef={orbitRef} onBearPosition={onBearPosition} />
       <OrbitControls
         ref={orbitRef}
         enablePan={false}
@@ -478,9 +500,10 @@ type VoxelBrainProps = {
   focusGroup?: string | null;
   autoRotate?: boolean;
   style?: React.CSSProperties;
+  onBearPosition?: (pos: { x: number; y: number } | null) => void;
 };
 
-export default function VoxelBrain({ focusGroup = null, autoRotate = false, style }: VoxelBrainProps) {
+export default function VoxelBrain({ focusGroup = null, autoRotate = false, style, onBearPosition }: VoxelBrainProps) {
   return (
     <Canvas
       camera={{ position: [7, 0.3, 7], fov: 42, near: 0.5, far: 80 }}
@@ -488,7 +511,7 @@ export default function VoxelBrain({ focusGroup = null, autoRotate = false, styl
       dpr={[1, 2]}
       style={{ background: "transparent", ...style }}
     >
-      <Scene focusGroup={focusGroup} autoRotate={autoRotate} />
+      <Scene focusGroup={focusGroup} autoRotate={autoRotate} onBearPosition={onBearPosition} />
     </Canvas>
   );
 }

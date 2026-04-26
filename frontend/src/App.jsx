@@ -77,7 +77,7 @@ export default function App() {
   const onAnatomyBack = useCallback(() => setPhase('bodymap'), [])
 
   // ── Render ───────────────────────────────────────────────────
-  const showCorner = mascotReady && phase !== 'intro' && phase !== 'landing' && phase !== 'visual'
+  const showCorner = mascotReady && !['intro', 'landing', 'visual', 'symptom', 'qna'].includes(phase)
 
   return (
     <div className="soma-root">
@@ -109,7 +109,7 @@ export default function App() {
             symptomText={session.symptomText}
             onComplete={onQnAComplete}
             onOsoMood={setOsoMood}
-            onBack={() => setPhase('landing')}
+            onBack={() => setPhase('symptom')}
           />
         </div>
       )}

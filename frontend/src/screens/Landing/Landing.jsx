@@ -123,18 +123,6 @@ export default function Landing({ onChat, onExplore }) {
         </svg>
       </div>
 
-      {/* Floating mascot */}
-      <div className="landing-floating-mascot" onClick={onChat}>
-        <div className="inner">
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="6.5" cy="5" r="2.4" fill="#fff" />
-            <circle cx="17.5" cy="5" r="2.4" fill="#fff" />
-            <circle cx="12" cy="13" r="7.2" fill="#fff" />
-            <circle cx="9.5" cy="12" r="1" fill="#E89B2D" />
-            <circle cx="14.5" cy="12" r="1" fill="#E89B2D" />
-          </svg>
-        </div>
-      </div>
     </div>
   )
 }

@@ -30,6 +30,17 @@ export async function muscleStory(symptomText) {
   return story
 }
 
+export async function muscleFocus(text) {
+  const res = await fetch('/api/muscle-focus', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) return null
+  const { muscle } = await res.json()
+  return muscle
+}
+
 export async function anatomyNarration(bodyRegion, symptomSummary) {
   const res = await fetch('/api/narration', {
     method: 'POST',

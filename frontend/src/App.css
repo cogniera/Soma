@@ -337,6 +337,20 @@ html, body {
 }
 .bubble--user .bubble-col { align-items: flex-end; }
 
+.type-cursor {
+  display:inline-block;
+  width:2px;height:1em;
+  background:var(--honey);
+  margin-left:2px;
+  vertical-align:text-bottom;
+  border-radius:1px;
+  animation:cursorBlink .6s ease-in-out infinite alternate;
+}
+@keyframes cursorBlink {
+  from { opacity:1; }
+  to   { opacity:0; }
+}
+
 /* Expand button under each Oso bubble */
 .bubble-expand-btn {
   display: inline-flex;
@@ -506,13 +520,42 @@ html, body {
   font-size: .96rem;
 }
 
-/* ── Q&A chat ─────────────────────────────────────────────── */
-.qna-screen {
-  position:fixed;inset:0;max-width:100%;
-  display:flex;flex-direction:column;
-  padding:0;gap:0;
+/* ── Q&A two-column layout ────────────────────────────────── */
+.qna-layout {
+  position:fixed;inset:0;
+  display:grid;
+  grid-template-columns:1fr 1fr;
   background:var(--cream);
+  overflow:hidden;
 }
+
+.qna-chat-col {
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+
+.qna-visual-panel {
+  position:absolute;
+  inset:0;
+  background:var(--cream);
+  overflow:hidden;
+}
+
+.qna-bear-img {
+  width:80px;
+  height:80px;
+  object-fit:contain;
+  filter:drop-shadow(0 6px 18px rgba(90,66,38,.22));
+  transition:left .4s cubic-bezier(.25,.8,.25,1), top .4s cubic-bezier(.25,.8,.25,1);
+}
+.qna-bear-img.is-speaking {
+  animation:bearBob .6s ease-in-out infinite alternate;
+}
+@keyframes bearBob {
+  from { transform:translateY(0); }
+  to   { transform:translateY(-6px); }
+}
+
 .chat-feed {
   flex:1;overflow-y:auto;
   padding:80px 24px 16px;
@@ -551,7 +594,7 @@ html, body {
 
 .chat-bar {
   display:flex;align-items:flex-end;gap:8px;
-  padding:12px 24px 28px 112px;
+  padding:12px 24px 28px 24px;
   background:linear-gradient(to top, var(--cream) 60%, transparent);
   position:sticky;bottom:0;
 }

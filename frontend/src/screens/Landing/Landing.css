@@ -392,25 +392,6 @@
   justify-content: center;
 }
 .landing-floating-mascot .inner svg { width: 30px; height: 30px; }
-.landing-floating-mascot::after {
-  content: "Hi! Need a check-in?";
-  position: absolute;
-  left: 76px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--soma-surface);
-  padding: 8px 14px;
-  border-radius: 14px 14px 14px 4px;
-  font-size: 13px;
-  color: var(--soma-ink-900);
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: var(--soma-shadow-md);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .18s ease;
-}
-.landing-floating-mascot:hover::after { opacity: 1; }
 
 /* RESPONSIVE */
 @media (max-width: 980px) {

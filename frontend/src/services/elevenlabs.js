@@ -7,7 +7,7 @@ export function stopSpeaking() {
   window.speechSynthesis?.cancel()
 }
 
-export async function speak(text, { onStart, onEnd } = {}) {
+export async function speak(text, { onStart, onEnd, onDuration } = {}) {
   const gen = ++speakGen
   if (currentAudio) { currentAudio.pause(); currentAudio = null }
   window.speechSynthesis?.cancel()
@@ -32,6 +32,7 @@ export async function speak(text, { onStart, onEnd } = {}) {
         const audio = new Audio(url)
         currentAudio = audio
 
+        audio.onloadedmetadata = () => onDuration?.(audio.duration)
         audio.onplay = () => onStart?.()
 
         audio.onended = () => {

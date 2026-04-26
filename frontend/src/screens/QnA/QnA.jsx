@@ -1,109 +1,33 @@
 import { useState, useEffect, useRef } from 'react'
-import { chat, muscleStory } from '../../services/claude'
+import { chat, muscleStory, muscleFocus } from '../../services/claude'
 import { speak, stopSpeaking } from '../../services/elevenlabs'
 import osoIdle from '../../assets/oso-idle.png'
 import osoSpeak from '../../assets/oso-speak.png'
 import VoxelBrain from '../../components/bodyman/VoxelBrain'
+import VoiceButton from '../../components/VoiceButton/VoiceButton'
 
 const BEAR_IMG = { idle: osoIdle, speak: osoSpeak }
 const MAX_TURNS = 4
 
-
-// ── Bear avatar components ────────────────────────────────────
-
-function LiveAvatar({ state }) {
-  return (
-    <div className={`bubble-avatar--live${state === 'speak' ? ' is-speaking' : ''}`}>
-      <img
-        key={state}
-        src={BEAR_IMG[state] || BEAR_IMG.idle}
-        alt="Oso"
-        className="oso-avatar-img"
-        draggable={false}
-      />
-    </div>
-  )
-}
-
-function PastAvatar() {
-  return <div className="bubble-avatar--past">🐻</div>
-}
-
-// ── Expand icon SVG ───────────────────────────────────────────
-function ExpandIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9"
-        stroke="currentColor" strokeWidth="1.7"
-        strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-// ── White-box Popup ───────────────────────────────────────────
-// Uses ONLY the initial symptom prompt (not the chat history) to build a
-// muscle-by-muscle anatomy story via Gemma. Each script is then spoken
-// aloud via ElevenLabs in story order.
-function Popup({ symptomText, onClose, onOsoMood }) {
-  const [story, setStory]     = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState(null)
-  const [playingIndex, setPlayingIndex] = useState(null)
-
-  // Close cleanly: stop any in-flight audio and reset Oso.
-  const close = () => {
-    stopSpeaking()
-    onOsoMood?.('idle')
-    onClose()
-  }
-
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') close() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    muscleStory(symptomText)
-      .then(s => { if (!cancelled) { setStory(s); setLoading(false) } })
-      .catch(err => { if (!cancelled) { setError(err.message); setLoading(false) } })
-    return () => { cancelled = true }
-  }, [symptomText])
-
-  // Play each script sequentially through ElevenLabs once the story arrives.
-  // Each item.muscle is the group name passed to VoxelBrain for camera focus.
+// ── Side panel: muscle visualizer ────────────────────────────
+function VisualPanel({ storyTrigger, bearState, onBearPosition }) {
   const [focusGroup, setFocusGroup] = useState(null)
 
   useEffect(() => {
-    if (!story || story.length === 0) return
+    if (!storyTrigger) return
     let cancelled = false
+    muscleFocus(storyTrigger).then(muscle => {
+      if (!cancelled) setFocusGroup(muscle)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [storyTrigger])
 
-    ;(async () => {
-      onOsoMood?.('speak')
-      for (const item of story) {
-        if (cancelled) break
-        setPlayingIndex(item.index)
-        setFocusGroup(item.muscle ?? null)
-        await speak(item.script)
-      }
-      if (!cancelled) {
-        setPlayingIndex(null)
-        setFocusGroup(null)
-        onOsoMood?.('idle')
-      }
-    })()
-
-    return () => {
-      cancelled = true
-      stopSpeaking()
-      setPlayingIndex(null)
+  useEffect(() => {
+    if (bearState === 'idle') {
       setFocusGroup(null)
-      onOsoMood?.('idle')
+      onBearPosition(null)
     }
-  }, [story])
+  }, [bearState])
 
   return (
     <div
@@ -137,42 +61,101 @@ function Popup({ symptomText, onClose, onOsoMood }) {
 
 // ── Main component ────────────────────────────────────────────
 export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
-  const [messages,  setMessages]  = useState([{ role: 'user', text: symptomText }])
-  const [input,     setInput]     = useState('')
-  const [loading,   setLoading]   = useState(true)
-  const [turns,     setTurns]     = useState(0)
-  const [bearState, setBearState] = useState('speak')
-  const [popupOpen, setPopupOpen] = useState(false)
-  const bottomRef = useRef(null)
+  const [messages,      setMessages]      = useState([{ role: 'user', text: symptomText }])
+  const [input,         setInput]         = useState('')
+  const [loading,       setLoading]       = useState(true)
+  const [turns,         setTurns]         = useState(0)
+  const [bearState,     setBearState]     = useState('speak')
+  const [storyTrigger,  setStoryTrigger]  = useState(symptomText)
+  const [bearPos,       setBearPos]       = useState(null)
+  const bottomRef   = useRef(null)
+  const typeTimer   = useRef(null)
 
-  const lastOsoIdx = loading
-    ? -1
-    : messages.reduce((last, m, i) => m.role === 'assistant' ? i : last, -1)
+  const typeInto = (text, duration) => {
+    clearInterval(typeTimer.current)
+    if (!duration || duration <= 0) return
+    const chars = text.length
+    const delay = (duration * 1000) / chars
+    let i = 0
+    typeTimer.current = setInterval(() => {
+      i++
+      setMessages(prev => {
+        const next = [...prev]
+        next[next.length - 1] = { ...next[next.length - 1], text: text.slice(0, i) }
+        return next
+      })
+      if (i >= chars) clearInterval(typeTimer.current)
+    }, delay)
+  }
+
+  const stopTyping = (fullText) => {
+    clearInterval(typeTimer.current)
+    setMessages(prev => {
+      const next = [...prev]
+      next[next.length - 1] = { ...next[next.length - 1], text: fullText }
+      return next
+    })
+  }
+
+  const playStory = async (triggerText, chatReply, cancelled) => {
+    const story = await muscleStory(triggerText)
+    if (cancelled?.() || !story?.length) return
+
+    // type the chat reply in sync with the total narration duration
+    const totalChars = chatReply.length
+    let charsSoFar = 0
+
+    for (const item of story) {
+      if (cancelled?.()) break
+      setStoryTrigger(item.script)
+      await speak(item.script, {
+        onDuration: (dur) => {
+          // portion of chat reply to type during this segment
+          const segChars = Math.round((item.script.length / story.reduce((s, i) => s + i.script.length, 0)) * totalChars)
+          const start = charsSoFar
+          const end = Math.min(charsSoFar + segChars, totalChars)
+          charsSoFar = end
+          const delay = dur ? (dur * 1000) / (end - start) : 30
+          let i = start
+          clearInterval(typeTimer.current)
+          typeTimer.current = setInterval(() => {
+            i++
+            setMessages(prev => {
+              const next = [...prev]
+              next[next.length - 1] = { ...next[next.length - 1], text: chatReply.slice(0, i) }
+              return next
+            })
+            if (i >= end) clearInterval(typeTimer.current)
+          }, delay)
+        },
+      })
+    }
+    if (!cancelled?.()) stopTyping(chatReply)
+  }
 
   useEffect(() => {
     let cancelled = false
     async function greet() {
       onOsoMood?.('speak')
       try {
-        const opening = await chat([
-          { role: 'user', content: symptomText },
-        ])
+        const opening = await chat([{ role: 'user', content: symptomText }])
         if (cancelled) return
-        setMessages(prev => [...prev, { role: 'assistant', text: opening }])
+        setMessages(prev => [...prev, { role: 'assistant', text: '' }])
         setLoading(false)
-        await speak(opening, {
-          onEnd: () => { setBearState('idle'); onOsoMood?.('idle') },
-        })
-      } catch {
+        await playStory(symptomText, opening, () => cancelled)
+        if (!cancelled) { setBearState('idle'); onOsoMood?.('idle') }
+      } catch (err) {
+        console.error('[QnA] greet error:', err)
         if (cancelled) return
-        setMessages(prev => [...prev, { role: 'assistant', text: "Great question! Let's explore the muscles involved. Can you tell me a bit more about the movement or area you're curious about?" }])
+        const fallback = "Great question! Let's explore the muscles involved. Can you tell me a bit more about the movement or area you're curious about?"
+        setMessages(prev => [...prev, { role: 'assistant', text: fallback }])
         setLoading(false)
         setBearState('idle')
         onOsoMood?.('idle')
       }
     }
     greet()
-    return () => { cancelled = true }
+    return () => { cancelled = true; clearInterval(typeTimer.current) }
   }, [])
 
   useEffect(() => {
@@ -207,12 +190,14 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
       reply = await chat(history)
     }
 
-    setMessages(prev => [...prev, { role: 'assistant', text: reply }])
+    setMessages(prev => [...prev, { role: 'assistant', text: '' }])
     setLoading(false)
 
-    await speak(reply, {
-      onEnd: () => { setBearState('idle'); onOsoMood?.('idle') },
-    })
+    let done2 = false
+    await playStory(val, reply, () => done2)
+    done2 = true
+    setBearState('idle')
+    onOsoMood?.('idle')
 
     if (newTurns >= MAX_TURNS) {
       setTimeout(() => {
@@ -232,31 +217,30 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
   const done = turns >= MAX_TURNS
 
   return (
-    <>
-      <div className="screen qna-screen">
-        <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
-          <button className="outline-btn" onClick={onBack}>← Back</button>
-        </div>
+    <div className="qna-layout">
+      {/* Back button */}
+      <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
+        <button className="outline-btn" onClick={() => { stopSpeaking(); onOsoMood?.('idle'); onBack() }}>← Back</button>
+      </div>
+
+      {/* Left: chat */}
+      <div className="qna-chat-col">
         <div className="chat-feed">
-
-          {messages.map((m, i) => (
-            <div key={i} className={`bubble ${m.role === 'assistant' ? 'bubble--oso' : 'bubble--user'}`}>
-              {m.role === 'assistant' && (
-                i === lastOsoIdx
-                  ? <LiveAvatar state={bearState} />
-                  : <PastAvatar />
-              )}
-
-              <div className="bubble-col">
-                <div className="bubble-body">{m.text}</div>
-
+          {messages.map((m, i) => {
+            const isTyping = m.role === 'assistant' && i === messages.length - 1 && loading === false && bearState === 'speak'
+            return (
+              <div key={i} className={`bubble ${m.role === 'assistant' ? 'bubble--oso' : 'bubble--user'}`}>
+                <div className="bubble-col">
+                  <div className="bubble-body">
+                    {m.text}{isTyping && <span className="type-cursor" />}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {loading && (
             <div className="bubble bubble--oso">
-              <LiveAvatar state="speak" />
               <div className="bubble-col">
                 <div className="bubble-body typing">
                   <span /><span /><span />
@@ -284,13 +268,11 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
               }}
               disabled={loading}
             />
-            <button
-              className="outline-btn"
-              onClick={() => setPopupOpen(true)}
+            <VoiceButton
+              onInterim={t => setInput(t)}
+              onFinal={t => { setInput(''); send(t) }}
               disabled={loading}
-            >
-              Visualize
-            </button>
+            />
             <button
               className="send-icon-btn"
               onClick={() => send(input)}
@@ -307,13 +289,26 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
         )}
       </div>
 
-      {popupOpen && (
-        <Popup
-          symptomText={symptomText}
-          onClose={() => setPopupOpen(false)}
-          onOsoMood={onOsoMood}
-        />
-      )}
-    </>
+      {/* Right: always-on visual panel */}
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+        <VisualPanel storyTrigger={storyTrigger} bearState={bearState} onBearPosition={setBearPos} />
+        {bearPos && (
+          <img
+            src={BEAR_IMG[bearState] || BEAR_IMG.idle}
+            alt="Oso"
+            className={`qna-bear-img${bearState === 'speak' ? ' is-speaking' : ''}`}
+            draggable={false}
+            style={{
+              position: 'absolute',
+              left: `${bearPos.x + 200}px`,
+              top: `${bearPos.y}px`,
+              marginLeft: '-40px',
+              marginTop: '-40px',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </div>
+    </div>
   )
 }
