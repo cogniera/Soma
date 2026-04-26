@@ -320,6 +320,97 @@
   to   { box-shadow:0 0 0 8px rgba(224,82,82,.0); }
 }
 
+/* ── Q&A bubble column (wraps text + expand button) ─────── */
+.bubble-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  max-width: 72%;
+}
+.bubble--user .bubble-col { align-items: flex-end; }
+
+/* Expand button under each Oso bubble */
+.bubble-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 2px solid var(--card-border);
+  border-radius: 999px;
+  background: rgba(245,166,35,.08);
+  color: var(--amber);
+  font-size: .85rem; 
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  animation: expandBtnIn .28s ease .15s both;
+  box-shadow: 0 4px 12px rgba(245,166,35,.15);
+}
+@keyframes expandBtnIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bubble-expand-btn:hover {
+  border-color: var(--honey);
+  color: var(--brown);
+  background: rgba(245,166,35,.16);
+  transform: translateY(-1px);
+}
+
+/* ── QnA popup ───────────────────────────────────────────── */
+.qna-popup-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(74, 44, 16, .32);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: backdropIn .22s ease both;
+}
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.qna-popup-box {
+  position: relative;
+  width: min(96vw, 920px);
+  height: min(88vh, 820px);
+  background: #fff;
+  border-radius: 28px;
+  box-shadow:
+    0 32px 80px rgba(74, 44, 16, .18),
+    0 4px 24px rgba(74, 44, 16, .08);
+  animation: popupBoxIn .35s cubic-bezier(0.34, 1.42, 0.64, 1) both;
+  overflow: hidden;
+}
+@keyframes popupBoxIn {
+  from { opacity: 0; transform: scale(.93) translateY(18px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.qna-popup-close {
+  position: absolute;
+  top: 16px; right: 16px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(74,44,16,.12);
+  background: rgba(254,246,235,.9);
+  color: var(--soft-brown);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .18s, border-color .18s, color .18s, transform .18s;
+  z-index: 1;
+}
+.qna-popup-close:hover {
+  background: var(--cream);
+  border-color: var(--honey);
+  color: var(--amber);
+  transform: scale(1.08);
+}
+
 /* ── Q&A chat ─────────────────────────────────────────────── */
 .qna-screen {
   position:fixed;inset:0;max-width:100%;
@@ -337,7 +428,7 @@
 .bubble--user { flex-direction:row-reverse; }
 .bubble-avatar { font-size:22px;flex-shrink:0;margin-top:2px; }
 .bubble-body {
-  max-width:72%;padding:13px 17px;border-radius:18px;
+  padding:13px 17px;border-radius:18px;
   font-size:.92rem;line-height:1.65;
 }
 .bubble--oso  .bubble-body {
