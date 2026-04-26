@@ -285,10 +285,10 @@ export default function Landing({ onChat, onExplore }) {
               </button>
 
               <button className="lp-action lp-action--secondary" onClick={onExplore}>
-                <span className="lp-action-icon">🫀</span>
+                <span className="lp-action-icon">🦴</span>
                 <span className="lp-action-text">
-                  <span className="lp-action-title">Explore the human body</span>
-                  <span className="lp-action-desc">Browse the interactive 3D anatomy model.</span>
+                  <span className="lp-action-title">Explore</span>
+                  <span className="lp-action-desc">Dive into the interactive 3D muscle model.</span>
                 </span>
                 <ArrowIcon />
               </button>
