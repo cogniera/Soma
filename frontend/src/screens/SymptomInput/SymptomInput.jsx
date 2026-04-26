@@ -35,7 +35,7 @@ export default function SymptomInput({ onSubmit }) {
       </h2>
 
       <p className="screen-sub">
-        Tell me what you're feeling — I'll help you understand your body.
+        Tell me what you're feeling - I'll help you understand your body.
       </p>
 
       <div className="quick-picks">

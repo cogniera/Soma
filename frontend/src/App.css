@@ -74,7 +74,7 @@
 /* ── Screen wrapper ─────────────────────────────────────────── */
 .screen-wrap {
   position: fixed; inset: 0; z-index: 10;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: safe center; justify-content: safe center;
   overflow-y: auto; padding: 24px;
   animation: screenIn 0.55s var(--ease-spring) both;
 }
@@ -176,7 +176,9 @@
 /* ── Oso corner ─────────────────────────────────────────────── */
 .oso-corner {
   position:fixed;z-index:30;left:24px;bottom:24px;
-  width:84px;height:84px;border-radius:50%;overflow:hidden;
+  width:84px;height:84px;aspect-ratio:1/1;
+  flex-shrink:0;
+  border-radius:50%;overflow:hidden;
   border:3px solid var(--honey);
   box-shadow:0 0 0 4px rgba(245,166,35,.15), 0 0 24px rgba(245,166,35,.3);
   background: var(--white);
@@ -195,6 +197,18 @@
 }
 .oso-corner-img { width:100%;height:100%;object-fit:cover;display:block; }
 
+.oso-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.bubble-avatar--live {
+  width: 80px;   /* adjust size */
+  height: 80px;
+  flex-shrink: 0;
+  overflow: visible; /* IMPORTANT */
+}
 /* ── Shared UI atoms ────────────────────────────────────────── */
 .chat-eyebrow {
   font-size:.7rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
@@ -351,7 +365,7 @@
 
 .chat-bar {
   display:flex;align-items:flex-end;gap:8px;
-  padding:12px 24px 28px;
+  padding:12px 24px 28px 112px;
   background:linear-gradient(to top, var(--cream) 60%, transparent);
   position:sticky;bottom:0;
 }
@@ -574,6 +588,133 @@
 .emergency-btn:hover { opacity:.9;transform:translateY(-1px); }
 .emergency-safe { display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:8px; }
 .emergency-safe p { font-size:.8rem;color:var(--soft-brown);opacity:.7; }
+
+/* ── Landing ─────────────────────────────────────────────────── */
+.landing-screen {
+  align-items: center;
+  text-align: center;
+  gap: 28px;
+  padding-bottom: 48px;
+  max-width: 400px;
+}
+
+.landing-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.landing-hero { display: flex; flex-direction: column; gap: 6px; }
+
+.landing-greeting {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  font-weight: 800;
+  color: var(--brown);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.landing-tagline {
+  font-size: .92rem;
+  color: var(--soft-brown);
+  opacity: .8;
+  margin: 0;
+}
+
+.landing-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.landing-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--white);
+  border: 1.5px solid var(--card-border);
+  border-radius: 20px;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+  box-shadow: 0 2px 12px rgba(0,0,0,.04);
+}
+.landing-card:hover {
+  border-color: var(--honey);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(245,166,35,.2);
+}
+.landing-card:active { transform: translateY(0); }
+
+.lc-icon {
+  font-size: 1.7rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.lc-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.lc-title {
+  font-size: .97rem;
+  font-weight: 700;
+  color: var(--brown);
+  font-family: var(--font-display);
+}
+.lc-desc {
+  font-size: .8rem;
+  color: var(--soft-brown);
+  line-height: 1.5;
+  margin: 0;
+}
+.lc-arrow {
+  flex-shrink: 0;
+  color: var(--amber);
+  opacity: .6;
+  transition: opacity .2s, transform .2s;
+}
+.landing-card:hover .lc-arrow {
+  opacity: 1;
+  transform: translateX(3px);
+}
+
+/* ── Triage emergency notice ─────────────────────────────────── */
+.triage-emergency-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(224,82,82,.07);
+  border: 1.5px solid rgba(224,82,82,.2);
+  font-size: .85rem;
+  color: var(--red);
+  width: 100%;
+  max-width: 400px;
+}
+.triage-emergency-notice--911 {
+  background: rgba(192,57,43,.09);
+  border-color: rgba(192,57,43,.3);
+}
+.triage-911-link {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--red);
+  text-decoration: none;
+  border: 1.5px solid currentColor;
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-size: .8rem;
+  transition: background .18s;
+}
+.triage-911-link:hover { background: rgba(224,82,82,.12); }
 
 /* ── Shared utilities ────────────────────────────────────────── */
 @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }

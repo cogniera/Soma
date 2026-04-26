@@ -1,18 +1,19 @@
 import { useState, useCallback } from 'react'
 import './App.css'
 
-import Intro         from './screens/Intro/Intro'
-import SymptomInput  from './screens/SymptomInput/SymptomInput'
-import QnA           from './screens/QnA/QnA'
-import Triage        from './screens/Triage/Triage'
-import BodyMap       from './screens/BodyMap/BodyMap'
-import Anatomy       from './screens/Anatomy/Anatomy'
-import Emergency     from './screens/Emergency/Emergency'
-import OsoCorner     from './components/OsoCorner/OsoCorner'
+import Intro      from './screens/Intro/Intro'
+import Landing    from './screens/Landing/Landing'
+import SymptomInput from './screens/SymptomInput/SymptomInput'
+import QnA        from './screens/QnA/QnA'
+import Triage     from './screens/Triage/Triage'
+import BodyMap    from './screens/BodyMap/BodyMap'
+import Anatomy    from './screens/Anatomy/Anatomy'
+import OsoCorner  from './components/OsoCorner/OsoCorner'
 
-// Phase state machine:
-// intro → symptom → qna → triage → bodymap → anatomy
-//                                 ↘ emergency
+// Phase flow: intro → landing → symptom → qna → triage → bodymap → anatomy
+// On refresh: skip intro, start at landing (sessionStorage flag)
+
+const VISITED_KEY = 'soma-visited'
 
 const INITIAL_SESSION = {
   symptomText:  '',
@@ -22,24 +23,30 @@ const INITIAL_SESSION = {
 }
 
 export default function App() {
-  const [phase, setPhase]         = useState('intro')
-  const [session, setSession]     = useState(INITIAL_SESSION)
-  const [osoMood, setOsoMood]     = useState('idle')
-  const [mascotReady, setMascotReady] = useState(false)
+  const alreadyVisited = !!sessionStorage.getItem(VISITED_KEY)
+
+  const [phase, setPhase]     = useState(alreadyVisited ? 'landing' : 'intro')
+  const [session, setSession] = useState(INITIAL_SESSION)
+  const [osoMood, setOsoMood] = useState('idle')
+  const [mascotReady, setMascotReady] = useState(alreadyVisited)
 
   const merge = (patch) => setSession(prev => ({ ...prev, ...patch }))
 
   const restart = useCallback(() => {
     setSession(INITIAL_SESSION)
-    setPhase('symptom')
+    setPhase('landing')
     setOsoMood('idle')
   }, [])
 
   // ── Transition handlers ──────────────────────────────────────
   const onIntroDone = useCallback(() => {
+    sessionStorage.setItem(VISITED_KEY, '1')
     setMascotReady(true)
-    setPhase('symptom')
+    setPhase('landing')
   }, [])
+
+  const onLandingChat    = useCallback(() => setPhase('symptom'), [])
+  const onLandingExplore = useCallback(() => setPhase('bodymap'), [])
 
   const onSymptomSubmit = useCallback((symptomText) => {
     merge({ symptomText })
@@ -56,11 +63,6 @@ export default function App() {
     setPhase('bodymap')
   }, [])
 
-  const onTriageEmergency = useCallback((triageResult) => {
-    merge({ triage: triageResult })
-    setPhase('emergency')
-  }, [])
-
   const onRegionConfirm = useCallback((region) => {
     merge({ bodyRegion: region })
     setPhase('anatomy')
@@ -69,7 +71,7 @@ export default function App() {
   const onAnatomyBack = useCallback(() => setPhase('bodymap'), [])
 
   // ── Render ───────────────────────────────────────────────────
-  const showCorner = mascotReady && phase !== 'intro'
+  const showCorner = mascotReady && phase !== 'intro' && phase !== 'landing'
 
   return (
     <div className="soma-root">
@@ -81,9 +83,14 @@ export default function App() {
         <div className="dot-grid" />
       </div>
 
-      {/* Screens */}
       {phase === 'intro' && (
         <Intro onComplete={onIntroDone} />
+      )}
+
+      {phase === 'landing' && (
+        <div className="screen-wrap" key="landing">
+          <Landing onChat={onLandingChat} onExplore={onLandingExplore} />
+        </div>
       )}
 
       {phase === 'symptom' && (
@@ -108,7 +115,6 @@ export default function App() {
             conversation={session.conversation}
             symptomText={session.symptomText}
             onContinue={onTriageContinue}
-            onEmergency={onTriageEmergency}
             onOsoMood={setOsoMood}
           />
         </div>
@@ -136,17 +142,6 @@ export default function App() {
         </div>
       )}
 
-      {phase === 'emergency' && (
-        <div className="screen-wrap" key="emergency">
-          <Emergency
-            triageResult={session.triage}
-            onRestart={restart}
-            onOsoMood={setOsoMood}
-          />
-        </div>
-      )}
-
-      {/* Persistent Oso corner — appears after intro */}
       {showCorner && (
         <OsoCorner mood={osoMood} />
       )}

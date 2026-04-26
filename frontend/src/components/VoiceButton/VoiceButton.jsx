@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { startListening, isSupported } from '../../services/speech'
+import { stopSpeaking } from '../../services/elevenlabs'
 
 export default function VoiceButton({ onInterim, onFinal, disabled }) {
   const [state, setState] = useState('idle') // idle | recording
@@ -17,6 +18,7 @@ export default function VoiceButton({ onInterim, onFinal, disabled }) {
     }
 
     setState('recording')
+    stopSpeaking()  // silence Oso before the mic opens
     stopRef.current = startListening({
       onInterim,
       onFinal: (t) => {
