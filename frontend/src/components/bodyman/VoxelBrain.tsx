@@ -26,6 +26,7 @@ const CENTER_LERP_RATE = 22;
 const FLY_SPEED = 2.5;
 const FLY_ARRIVE_THRESHOLD = 0.05;
 const FLY_ZOOM_DISTANCE = 8;
+const FLY_TARGET_DURATION = 1.5;
 
 const FADE_SPEED = 4.0;        // lerp speed for dim transition
 const DIM_AMOUNT = 0.92;       // how far toward grey (0 = no change, 1 = full grey)
@@ -289,6 +290,7 @@ type FlyState = {
   target: THREE.Vector3;
   camTarget: THREE.Vector3;
   arrived: boolean;
+  speed: number;
 };
 
 type ManProps = {
@@ -344,7 +346,12 @@ function Man({ focusGroup, flyState, orbitRef }: ManProps) {
     // --- Camera fly-to ---
     const fly = flyState.current;
     if (fly.active && !fly.arrived) {
-      const t = 1 - Math.exp(-FLY_SPEED * dt);
+      if (fly.speed <= 0) {
+        const dist = camera.position.distanceTo(fly.camTarget);
+        const decayCount = Math.log(Math.max(dist, FLY_ARRIVE_THRESHOLD) / FLY_ARRIVE_THRESHOLD);
+        fly.speed = Math.max(FLY_SPEED, decayCount / FLY_TARGET_DURATION);
+      }
+      const t = 1 - Math.exp(-fly.speed * dt);
       camera.position.lerp(fly.camTarget, t);
       const { min: yMin, max: yMax } = getBodyYBounds();
       camera.position.y = Math.max(yMin, Math.min(yMax, camera.position.y));
@@ -418,6 +425,7 @@ function Scene({ focusGroup, autoRotate = false }: SceneProps) {
     target: new THREE.Vector3(0, 0.3, 0),
     camTarget: new THREE.Vector3(10, 0.3, 10),
     arrived: true,
+    speed: 0,
   });
 
   const prevFocusGroup = useRef<string | null>(null);
@@ -430,7 +438,7 @@ function Scene({ focusGroup, autoRotate = false }: SceneProps) {
         const camPos = focus.center.clone().addScaledVector(focus.dir, FLY_ZOOM_DISTANCE);
         const { min: yMin, max: yMax } = getBodyYBounds();
         camPos.y = Math.max(yMin, Math.min(yMax, camPos.y));
-        flyState.current = { active: true, arrived: false, target: focus.center.clone(), camTarget: camPos };
+        flyState.current = { active: true, arrived: false, target: focus.center.clone(), camTarget: camPos, speed: 0 };
         if (orbitRef.current) orbitRef.current.enabled = false;
       }
     } else {
@@ -439,6 +447,7 @@ function Scene({ focusGroup, autoRotate = false }: SceneProps) {
         arrived: false,
         target: new THREE.Vector3(0, 0.3, 0),
         camTarget: new THREE.Vector3(7, 0.3, 7),
+        speed: 0,
       };
       if (orbitRef.current) orbitRef.current.enabled = false;
     }
