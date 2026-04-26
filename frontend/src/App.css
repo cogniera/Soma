@@ -337,6 +337,25 @@ html, body {
 }
 .bubble--user .bubble-col { align-items: flex-end; }
 
+.oso-thinking {
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--font-mono, monospace);
+  font-size:.9rem;
+  color:var(--soft-brown);
+}
+.oso-spinner {
+  font-size:1rem;
+  color:var(--honey);
+  display:inline-block;
+  width:1em;text-align:center;
+}
+.oso-thinking-word {
+  font-family:var(--font);
+  font-size:.88rem;
+  color:var(--soft-brown);
+  letter-spacing:.02em;
+}
+
 .type-cursor {
   display:inline-block;
   width:2px;height:1em;

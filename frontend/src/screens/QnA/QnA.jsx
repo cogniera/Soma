@@ -70,6 +70,29 @@ function VisualPanel({ storyTrigger, bearState, onBearPosition }) {
   )
 }
 
+const SPINNER_FRAMES = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏']
+const THINKING_WORDS = ['Thinking', 'Analyzing', 'Exploring', 'Mapping', 'Connecting']
+
+function OsoThinking() {
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 100)
+    return () => clearInterval(t)
+  }, [])
+  const spinner = SPINNER_FRAMES[tick % SPINNER_FRAMES.length]
+  const word = THINKING_WORDS[Math.floor(tick / 10) % THINKING_WORDS.length]
+  return (
+    <div className="bubble bubble--oso">
+      <div className="bubble-col">
+        <div className="bubble-body oso-thinking">
+          <span className="oso-spinner">{spinner}</span>
+          <span className="oso-thinking-word">{word}…</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────
 export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
   const [messages,      setMessages]      = useState([{ role: 'user', text: symptomText }])
@@ -128,6 +151,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
     if (cancelled?.() || !story?.length) return
 
     let accumulated = ''
+    let started = false
 
     // prefetch first segment immediately
     let nextBlob = prefetchAudio(story[0].script)
@@ -146,6 +170,9 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
       setStoryTrigger(scriptText)
       await speak(scriptText, {
         prefetchedBlob: blob,
+        onStart: () => {
+          if (!started) { started = true; setLoading(false) }
+        },
         onDuration: (dur) => { typeInto(accumulated, scriptText, dur) },
         onEnd: () => {
           accumulated += (accumulated ? ' ' : '') + scriptText
@@ -163,7 +190,6 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
         const opening = await chat([{ role: 'user', content: symptomText }])
         if (cancelled) return
         setMessages(prev => [...prev, { role: 'assistant', text: '' }])
-        setLoading(false)
         await playStory(symptomText, opening, () => cancelled)
         if (!cancelled) { setBearState('idle'); onOsoMood?.('idle') }
       } catch (err) {
@@ -213,7 +239,6 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
     }
 
     setMessages(prev => [...prev, { role: 'assistant', text: '' }])
-    setLoading(false)
 
     let done2 = false
     await playStory(val, reply, () => done2)
@@ -261,15 +286,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
             )
           })}
 
-          {loading && (
-            <div className="bubble bubble--oso">
-              <div className="bubble-col">
-                <div className="bubble-body typing">
-                  <span /><span /><span />
-                </div>
-              </div>
-            </div>
-          )}
+          {loading && <OsoThinking />}
 
           <div ref={bottomRef} />
         </div>
