@@ -1,5 +1,7 @@
+const API = import.meta.env.VITE_API_URL ?? ''
+
 export async function chat(messages) {
-  const res = await fetch('/api/chat', {
+  const res = await fetch(`${API}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages }),
@@ -10,7 +12,7 @@ export async function chat(messages) {
 }
 
 export async function triage(conversation) {
-  const res = await fetch('/api/triage', {
+  const res = await fetch(`${API}/api/triage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ conversation }),
@@ -20,7 +22,7 @@ export async function triage(conversation) {
 }
 
 export async function muscleStory(symptomText) {
-  const res = await fetch('/api/muscle-story', {
+  const res = await fetch(`${API}/api/muscle-story`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ symptomText }),
@@ -31,7 +33,7 @@ export async function muscleStory(symptomText) {
 }
 
 export async function muscleFocus(text) {
-  const res = await fetch('/api/muscle-focus', {
+  const res = await fetch(`${API}/api/muscle-focus`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
@@ -42,7 +44,7 @@ export async function muscleFocus(text) {
 }
 
 export async function anatomyNarration(bodyRegion, symptomSummary) {
-  const res = await fetch('/api/narration', {
+  const res = await fetch(`${API}/api/narration`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bodyRegion, symptomSummary }),

@@ -1,3 +1,5 @@
+const API = import.meta.env.VITE_API_URL ?? ''
+
 let currentAudio = null
 let speakGen = 0
 
@@ -10,7 +12,7 @@ export function stopSpeaking() {
 // Pre-fetch audio blob without playing it — call this during the previous segment
 export async function prefetchAudio(text) {
   try {
-    const res = await fetch('/api/speak', {
+    const res = await fetch(`${API}/api/speak`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -33,7 +35,7 @@ export async function speak(text, { onStart, onEnd, onDuration, prefetchedBlob }
   try {
     // Use prefetched blob if available, otherwise fetch now
     const blob = prefetchedBlob ?? await (async () => {
-      const res = await fetch('/api/speak', {
+      const res = await fetch(`${API}/api/speak`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
