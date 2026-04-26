@@ -99,7 +99,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
   const [input,         setInput]         = useState('')
   const [loading,       setLoading]       = useState(true)
   const [turns,         setTurns]         = useState(0)
-  const [bearState,     setBearState]     = useState('speak')
+  const [bearState,     setBearState]     = useState('idle')
   const [storyTrigger,  setStoryTrigger]  = useState(symptomText)
   const [bearPos,       setBearPos]       = useState(null)
   const [frameIdx,      setFrameIdx]      = useState(0)
@@ -171,7 +171,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
       await speak(scriptText, {
         prefetchedBlob: blob,
         onStart: () => {
-          if (!started) { started = true; setLoading(false) }
+          if (!started) { started = true; setLoading(false); setBearState('speak') }
         },
         onDuration: (dur) => { typeInto(accumulated, scriptText, dur) },
         onEnd: () => {
@@ -217,7 +217,6 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
     setMessages(prev => [...prev, { role: 'user', text: val }])
     setInput('')
     setLoading(true)
-    setBearState('speak')
     onOsoMood?.('speak')
 
     const history = [
@@ -332,22 +331,26 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
       {/* Right: always-on visual panel */}
       <div style={{ position: 'relative', overflow: 'hidden', width: '100%', height: '100%' }}>
         <VisualPanel storyTrigger={storyTrigger} bearState={bearState} onBearPosition={setBearPos} />
-        {bearPos && (
-          <img
-            src={bearState === 'speak' ? (SPEAK_FRAMES[frameIdx] ?? osoIdle) : osoIdle}
-            alt="Oso"
-            className={`qna-bear-img${bearState === 'speak' ? ' is-speaking' : ''}`}
-            draggable={false}
-            style={{
-              position: 'absolute',
-              left: `${bearPos.x + 200}px`,
-              top: `${bearPos.y}px`,
-              marginLeft: '-40px',
-              marginTop: '-40px',
-              pointerEvents: 'none',
-            }}
-          />
-        )}
+        {(() => {
+          const isNarrating = bearState === 'speak' && bearPos
+          return (
+            <img
+              src={bearState === 'speak' ? (SPEAK_FRAMES[frameIdx] ?? osoIdle) : osoIdle}
+              alt="Oso"
+              className={`qna-bear-img${bearState === 'speak' ? ' is-speaking' : ''}`}
+              draggable={false}
+              style={{
+                position: 'absolute',
+                left: isNarrating ? `${bearPos.x + 200}px` : 'calc(100% - 64px)',
+                top: isNarrating ? `${bearPos.y}px` : 'calc(100% - 64px)',
+                marginLeft: '-40px',
+                marginTop: '-40px',
+                transition: 'left 0.6s cubic-bezier(0.4, 0, 0.2, 1), top 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                pointerEvents: 'none',
+              }}
+            />
+          )
+        })()}
       </div>
     </div>
   )
