@@ -4,7 +4,7 @@ import VoxelBrain from '../../components/bodyman/VoxelBrain'
 
 const QUICK_PICKS = [
   'Lower back', 'Shoulders', 'Quads',
-  'Hamstrings', 'Chest', 'Neck',
+  'Chest', 'Neck',
 ]
 
 export default function SymptomInput({ onSubmit, onVisual, onBack }) {
