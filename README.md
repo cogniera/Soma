@@ -1,6 +1,6 @@
 # SOMA
 <div align="center">
-  <a href="https://devpost.com/software/soma">
+  <a href="https://devpost.com/software/soma-4wzq57">
     <img src="soma.png" alt="Soma width="800">
   </a>
   <p><i>Click the logo to view the project on Devpost</i></p>
