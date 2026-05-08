@@ -16,12 +16,11 @@ const FACES: Array<{
   { normal: [ 0, 0,-1], corners: [[-1,-1,-1],[-1, 1,-1],[ 1, 1,-1],[ 1,-1,-1]] },
 ];
 
-const HOVER_RADIUS = 0.3;
-const HOVER_STRENGTH = 0.45;
+const HOVER_RADIUS = 0.2;
+const HOVER_STRENGTH = 0.28;
 const HOVER_JITTER = 0.08;
 const EASE_IN = 16;
 const EASE_OUT = 7;
-const CENTER_LERP_RATE = 22;
 
 const FLY_SPEED = 2.5;
 const FLY_ARRIVE_THRESHOLD = 0.05;
@@ -99,7 +98,7 @@ function buildGroupMesh(
 
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.85,
+    roughness: 0.6,
     metalness: 0,
   });
 
@@ -155,53 +154,7 @@ function buildGroupMesh(
       );
   };
 
-  const mesh = new THREE.Mesh(geometry, material);
-
-  // Build edge lines — 12 edges per voxel box
-  const EDGE_PAIRS: Array<[number, number, number][]> = [
-    [[-1,-1,-1],[ 1,-1,-1]], [[-1, 1,-1],[ 1, 1,-1]],
-    [[-1,-1, 1],[ 1,-1, 1]], [[-1, 1, 1],[ 1, 1, 1]],
-    [[-1,-1,-1],[-1, 1,-1]], [[ 1,-1,-1],[ 1, 1,-1]],
-    [[-1,-1, 1],[-1, 1, 1]], [[ 1,-1, 1],[ 1, 1, 1]],
-    [[-1,-1,-1],[-1,-1, 1]], [[ 1,-1,-1],[ 1,-1, 1]],
-    [[-1, 1,-1],[-1, 1, 1]], [[ 1, 1,-1],[ 1, 1, 1]],
-  ];
-  const edgePositions = new Float32Array(count * 12 * 2 * 3);
-  let ei = 0;
-  for (let i = 0; i < grid.cells.length; i++) {
-    const c = grid.cells[i];
-    for (const [a, b] of EDGE_PAIRS) {
-      edgePositions[ei++] = c.x + a[0] * half;
-      edgePositions[ei++] = c.y + a[1] * half;
-      edgePositions[ei++] = c.z + a[2] * half;
-      edgePositions[ei++] = c.x + b[0] * half;
-      edgePositions[ei++] = c.y + b[1] * half;
-      edgePositions[ei++] = c.z + b[2] * half;
-    }
-  }
-  const edgeGeo = new THREE.BufferGeometry();
-  edgeGeo.setAttribute("position", new THREE.BufferAttribute(edgePositions, 3));
-
-  const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 });
-  edgeMat.onBeforeCompile = (shader) => {
-    shader.uniforms.uDim = dimUniform;
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        "#include <common>",
-        `#include <common>
-         uniform float uDim;`,
-      )
-      .replace(
-        "#include <dithering_fragment>",
-        `#include <dithering_fragment>
-         gl_FragColor.a = mix(0.18, 0.0, uDim);`,
-      );
-  };
-
-  const edges = new THREE.LineSegments(edgeGeo, edgeMat);
-  mesh.add(edges);
-
-  return mesh;
+  return new THREE.Mesh(geometry, material);
 }
 
 const GROUP_COLORS: Record<string, string> = {
@@ -265,6 +218,64 @@ function computeGroupFocus(groupName: string): { center: THREE.Vector3; dir: THR
   return { center: sum, dir };
 }
 
+function buildRaycastMesh(entries: ReturnType<typeof buildGroupGrids>): THREE.Mesh {
+  if (entries.length === 0) return new THREE.Mesh();
+
+  const voxelSize = entries[0].grid.voxelSize;
+  const invV = 1 / voxelSize;
+  const half = voxelSize * 0.5;
+
+  // Encode (ix, iy, iz) as a single integer key. Each axis fits in ±1024 for
+  // any realistic body voxel grid (dims are 136×192×120).
+  const B = 2048;
+  const pack = (ix: number, iy: number, iz: number) =>
+    (ix + 1024) + (iy + 1024) * B + (iz + 1024) * B * B;
+
+  // Pass 1: insert every occupied cell into a hash set
+  const occupied = new Set<number>();
+  for (const { grid } of entries) {
+    for (const c of grid.cells) {
+      occupied.add(pack(
+        Math.round(c.x * invV - 0.5),
+        Math.round(c.y * invV - 0.5),
+        Math.round(c.z * invV - 0.5),
+      ));
+    }
+  }
+
+  // Pass 2: emit only exterior faces (faces whose neighbor cell is absent)
+  const positions: number[] = [];
+  const indices: number[] = [];
+  let vert = 0;
+
+  for (const { grid } of entries) {
+    for (const c of grid.cells) {
+      const ix = Math.round(c.x * invV - 0.5);
+      const iy = Math.round(c.y * invV - 0.5);
+      const iz = Math.round(c.z * invV - 0.5);
+
+      for (let f = 0; f < FACES.length; f++) {
+        const n = FACES[f].normal;
+        if (occupied.has(pack(ix + n[0], iy + n[1], iz + n[2]))) continue;
+
+        const base = vert;
+        for (const corner of FACES[f].corners) {
+          positions.push(c.x + corner[0] * half, c.y + corner[1] * half, c.z + corner[2] * half);
+          vert++;
+        }
+        indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      }
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+  geo.computeBoundingSphere();
+
+  return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+}
+
 let _bodyYBounds: { min: number; max: number } | null = null;
 function getBodyYBounds(): { min: number; max: number } {
   if (_bodyYBounds) return _bodyYBounds;
@@ -298,9 +309,10 @@ type ManProps = {
   flyState: React.MutableRefObject<FlyState>;
   orbitRef: React.MutableRefObject<any>;
   onBearPosition?: (pos: { x: number; y: number } | null) => void;
+  onGroupClick?: (group: string) => void;
 };
 
-function Man({ focusGroup, flyState, orbitRef, onBearPosition }: ManProps) {
+function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: ManProps) {
   const hoverTarget = useRef({
     center: new THREE.Vector3(0, -1000, 0),
     radius: 0,
@@ -323,6 +335,8 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition }: ManProps) {
 
   const groupEntries = useMemo(() => buildGroupGrids(), []);
 
+  const raycastMesh = useMemo(() => buildRaycastMesh(groupEntries), [groupEntries]);
+
   const groupMeshes = useMemo(() => {
     const color = new THREE.Color();
     return groupEntries.map(({ name, grid }, i) => {
@@ -340,6 +354,23 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition }: ManProps) {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Spatial hash: packed voxel index → group name for O(1) click lookup
+  const groupLookup = useMemo(() => {
+    if (groupEntries.length === 0) return null;
+    const voxelSize = groupEntries[0].grid.voxelSize;
+    const inv = 1 / voxelSize;
+    const B = 2048;
+    const pack = (ix: number, iy: number, iz: number) =>
+      (ix + 1024) + (iy + 1024) * B + (iz + 1024) * B * B;
+    const map = new Map<number, string>();
+    for (const { name, grid } of groupEntries) {
+      for (const c of grid.cells) {
+        map.set(pack(Math.floor(c.x * inv), Math.floor(c.y * inv), Math.floor(c.z * inv)), name);
+      }
+    }
+    return { map, inv, voxelSize, pack };
+  }, [groupEntries]);
 
   const { camera, size } = useThree();
   const bearPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -384,7 +415,7 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition }: ManProps) {
     const t2 = 1 - Math.exp(-ease * dt);
     sharedUniforms.uHoverRadius.value += (target.radius - sharedUniforms.uHoverRadius.value) * t2;
     sharedUniforms.uHoverStrength.value += (target.strength - sharedUniforms.uHoverStrength.value) * t2;
-    sharedUniforms.uHoverCenter.value.lerp(target.center, 1 - Math.exp(-CENTER_LERP_RATE * dt));
+    sharedUniforms.uHoverCenter.value.copy(target.center);
 
     // --- Project focused group centroid to screen for bear overlay ---
     if (onBearPosition) {
@@ -406,29 +437,47 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition }: ManProps) {
     }
   });
 
-  // const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
-  //   e.stopPropagation();
-  //   hoverTarget.current.center.copy(e.point);
-  //   hoverTarget.current.radius = HOVER_RADIUS;
-  //   hoverTarget.current.strength = HOVER_STRENGTH;
-  // };
+  const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    hoverTarget.current.center.copy(e.point);
+    hoverTarget.current.radius = HOVER_RADIUS;
+    hoverTarget.current.strength = HOVER_STRENGTH;
+  };
 
-  // const handlePointerOut = (e: ThreeEvent<PointerEvent>) => {
-  //   e.stopPropagation();
-  //   hoverTarget.current.radius = 0;
-  //   hoverTarget.current.strength = 0;
-  // };
+  const handlePointerOut = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    hoverTarget.current.radius = 0;
+    hoverTarget.current.strength = 0;
+  };
+
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    hoverTarget.current.radius = 0;
+    hoverTarget.current.strength = 0;
+    if (!onGroupClick || !groupLookup) return;
+    const { map, inv, voxelSize, pack } = groupLookup;
+    // Shift click point inward by 40% of voxelSize along the face normal so we
+    // land inside the owning voxel rather than on its outer boundary.
+    const inset = voxelSize * 0.4;
+    const n = e.face?.normal;
+    const px = e.point.x - (n ? n.x * inset : 0);
+    const py = e.point.y - (n ? n.y * inset : 0);
+    const pz = e.point.z - (n ? n.z * inset : 0);
+    const group = map.get(pack(Math.floor(px * inv), Math.floor(py * inv), Math.floor(pz * inv)));
+    if (group) onGroupClick(group);
+  };
 
   return (
     <>
-      {groupMeshes.map(({ mesh }, i) => (
-        <primitive
-          key={i}
-          object={mesh}
-          // onPointerMove={handlePointerMove}
-          // onPointerOut={handlePointerOut}
-        />
+      {groupMeshes.map(({ name, mesh }) => (
+        <primitive key={name} object={mesh} />
       ))}
+      <primitive
+        object={raycastMesh}
+        onPointerMove={handlePointerMove}
+        onPointerOut={handlePointerOut}
+        onClick={handleClick}
+      />
     </>
   );
 }
@@ -437,9 +486,10 @@ type SceneProps = {
   focusGroup: string | null;
   autoRotate?: boolean;
   onBearPosition?: (pos: { x: number; y: number } | null) => void;
+  onGroupClick?: (group: string) => void;
 };
 
-function Scene({ focusGroup, autoRotate = false, onBearPosition }: SceneProps) {
+function Scene({ focusGroup, autoRotate = false, onBearPosition, onGroupClick }: SceneProps) {
   const orbitRef = useRef<any>(null);
 
   const flyState = useRef<FlyState>({
@@ -477,10 +527,11 @@ function Scene({ focusGroup, autoRotate = false, onBearPosition }: SceneProps) {
 
   return (
     <>
-      <ambientLight intensity={1.4} />
-      <directionalLight position={[-6, 8,  6]} intensity={0.6} />
-      <directionalLight position={[ 6, 6, -6]} intensity={0.6} />
-      <Man focusGroup={focusGroup} flyState={flyState} orbitRef={orbitRef} onBearPosition={onBearPosition} />
+      <ambientLight intensity={0.25} />
+      <directionalLight position={[ 5, 12,  7]} intensity={1.6} />
+      <directionalLight position={[-5,  2, -4]} intensity={0.4} />
+      <directionalLight position={[ 0,  4, -9]} intensity={0.5} />
+      <Man focusGroup={focusGroup} flyState={flyState} orbitRef={orbitRef} onBearPosition={onBearPosition} onGroupClick={onGroupClick} />
       <OrbitControls
         ref={orbitRef}
         enablePan={false}
@@ -501,9 +552,10 @@ type VoxelBrainProps = {
   autoRotate?: boolean;
   style?: React.CSSProperties;
   onBearPosition?: (pos: { x: number; y: number } | null) => void;
+  onGroupClick?: (group: string) => void;
 };
 
-export default function VoxelBrain({ focusGroup = null, autoRotate = false, style, onBearPosition }: VoxelBrainProps) {
+export default function VoxelBrain({ focusGroup = null, autoRotate = false, style, onBearPosition, onGroupClick }: VoxelBrainProps) {
   return (
     <Canvas
       camera={{ position: [7, 0.3, 7], fov: 42, near: 0.5, far: 80 }}
@@ -511,7 +563,7 @@ export default function VoxelBrain({ focusGroup = null, autoRotate = false, styl
       dpr={[1, 2]}
       style={{ background: "transparent", ...style }}
     >
-      <Scene focusGroup={focusGroup} autoRotate={autoRotate} onBearPosition={onBearPosition} />
+      <Scene focusGroup={focusGroup} autoRotate={autoRotate} onBearPosition={onBearPosition} onGroupClick={onGroupClick} />
     </Canvas>
   );
 }

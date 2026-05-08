@@ -8,8 +8,7 @@ app.use(cors())
 app.use(express.json())
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
-const MODEL = 'gemini-2.0-flash'
-const GEMMA_MODEL = 'gemma-3-27b-it'
+const MODEL = 'gemini-3.1-flash-lite'
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'oEQ6y2Z3RRGa3doHtAB5'
 
 // Muscles available in the 3D model, grouped by region. Gemma must pick from
@@ -107,7 +106,7 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: GEMMA_MODEL,
+      model: MODEL,
       contents: toGeminiContents(messages, CHAT_SYSTEM),
     })
     res.json({ text: sanitize(response.text) })
@@ -127,7 +126,7 @@ app.post('/api/triage', async (req, res) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: GEMMA_MODEL,
+      model: MODEL,
       contents: `${TRIAGE_SYSTEM}\n\nSymptom conversation:\n\n${transcript}`,
     })
     const parsed = JSON.parse(response.text)
@@ -145,7 +144,7 @@ app.post('/api/narration', async (req, res) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: GEMMA_MODEL,
+      model: MODEL,
       contents: `${NARRATION_SYSTEM}\n\nBody region: ${bodyRegion}\nSymptom context: ${symptomSummary || 'general discomfort'}`,
     })
     res.json({ text: sanitize(response.text) })
@@ -179,7 +178,7 @@ CRITICAL: the "muscle" field uses the underscored identifier (e.g. "Upper_Trap")
 
   try {
     const response = await ai.models.generateContent({
-      model: GEMMA_MODEL,
+      model: MODEL,
       contents: prompt,
     })
 
@@ -236,7 +235,7 @@ Sentence: "${text}"`
 
   try {
     const response = await ai.models.generateContent({
-      model: GEMMA_MODEL,
+      model: MODEL,
       contents: prompt,
     })
     const raw = (response.text ?? '').trim().replace(/[^a-zA-Z_]/g, '')

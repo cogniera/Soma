@@ -87,7 +87,7 @@ export default function Explore({ onBack }) {
         href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito:wght@400;600;700;800&display=swap"
       />
 
-      <VoxelBrain focusGroup={active} />
+      <VoxelBrain focusGroup={active} onGroupClick={toggle} />
 
       {/* Group buttons — right side panel, 3 per row */}
       <div style={{
