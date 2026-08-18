@@ -74,12 +74,20 @@ const groupBtnBase = {
 
 export default function Explore({ onBack }) {
   const [active, setActive] = useState(null)
+  const [resetSignal, setResetSignal] = useState(0)
 
   const toggle = (g) => setActive(prev => prev === g ? null : g)
 
+  // Clearing the selection alone leaves an orbited camera where it is, so ask
+  // for the camera reset explicitly too.
+  const resetView = () => {
+    setActive(null)
+    setResetSignal(n => n + 1)
+  }
+
   return (
     <div style={{ position: 'fixed', inset: 0, fontFamily: SOMA.fontBody }}>
-      <VoxelBrain focusGroup={active} onGroupClick={toggle} />
+      <VoxelBrain focusGroup={active} resetSignal={resetSignal} onGroupClick={toggle} />
 
       {/* Group buttons — right side panel, 3 per row */}
       <div style={{
@@ -111,7 +119,7 @@ export default function Explore({ onBack }) {
 
         {/* Reset */}
         <button
-          onClick={() => setActive(null)}
+          onClick={resetView}
           style={{
             ...groupBtnBase,
             flex: 'none', width: '100%',

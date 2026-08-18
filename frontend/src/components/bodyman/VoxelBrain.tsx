@@ -28,6 +28,17 @@ const HOVER_JITTER = 0.08;
 const EASE_IN = 16;
 const EASE_OUT = 7;
 
+// The bubble sits exactly on the cursor, so voxels it abandons would drop back
+// to rest the instant the cursor outruns them. A second bubble trails the first
+// and holds those voxels up while they settle. It contributes nothing while it
+// sits on top of the leader — only the gap between them gives it weight.
+const TRAIL_FOLLOW = 14;
+// Past this gap the trail would have to plough a trench across the body to catch
+// up, so it fades out where it stands and re-seats on the cursor instead.
+const TRAIL_JUMP_DIST = 0.6;
+const TRAIL_FADE_EASE = 14;
+const TRAIL_FADE_EPS = 0.02;
+
 const FLY_SPEED = 2.5;
 const FLY_ARRIVE_THRESHOLD = 0.05;
 const FLY_ZOOM_DISTANCE = 8;
@@ -40,10 +51,53 @@ type SharedUniforms = {
   uHoverCenter: { value: THREE.Vector3 };
   uHoverRadius: { value: number };
   uHoverStrength: { value: number };
+  uTrailCenter: { value: THREE.Vector3 };
+  uTrailStrength: { value: number };
   uHoverJitter: { value: number };
 };
 
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
 type DimUniform = { value: number };
+
+// The voxel displacement, shared by the face material and the edge material so
+// an edge always travels with its cube.
+const HOVER_VERTEX_COMMON = `#include <common>
+  attribute vec3 voxelCenter;
+  uniform vec3 uHoverCenter;
+  uniform float uHoverRadius;
+  uniform float uHoverStrength;
+  uniform vec3 uTrailCenter;
+  uniform float uTrailStrength;
+  uniform float uHoverJitter;
+
+  vec3 groupVoxelRand( vec3 p ) {
+    float h  = fract( sin( dot( p, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );
+    float h2 = fract( sin( dot( p, vec3( 39.3468, 11.135, 83.155 ) ) ) * 24634.6345 );
+    float h3 = fract( sin( dot( p, vec3( 93.9898, 67.345, 28.123 ) ) ) * 93726.1234 );
+    return normalize( vec3( h, h2, h3 ) * 2.0 - 1.0 );
+  }
+
+  vec3 hoverPush( vec3 voxel, vec3 center, float strength ) {
+    if ( uHoverRadius <= 0.0 || strength <= 0.0 ) return vec3( 0.0 );
+    vec3 delta = voxel - center;
+    float d = length( delta );
+    if ( d >= uHoverRadius ) return vec3( 0.0 );
+    float f = 1.0 - d / uHoverRadius;
+    f = f * f;
+    vec3 radial = d > 0.0001 ? delta / d : vec3( 0.0, 1.0, 0.0 );
+    vec3 rnd = groupVoxelRand( voxel );
+    vec3 dir = normalize( radial + rnd * uHoverJitter );
+    float mag = 0.6 + fract( rnd.x * 7.31 + rnd.y * 13.17 ) * 0.8;
+    return dir * f * strength * mag;
+  }`;
+
+const HOVER_VERTEX_BEGIN = `vec3 transformed = vec3( position );
+  transformed += hoverPush( voxelCenter, uHoverCenter, uHoverStrength );
+  transformed += hoverPush( voxelCenter, uTrailCenter, uTrailStrength );`;
 
 type GroupGeometry = { geometry: THREE.BufferGeometry; edgeGeo: THREE.BufferGeometry };
 
@@ -159,36 +213,11 @@ function createGroupMesh(
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
-        `#include <common>
-         attribute vec3 voxelCenter;
-         uniform vec3 uHoverCenter;
-         uniform float uHoverRadius;
-         uniform float uHoverStrength;
-         uniform float uHoverJitter;
-
-         vec3 groupVoxelRand( vec3 p ) {
-           float h  = fract( sin( dot( p, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );
-           float h2 = fract( sin( dot( p, vec3( 39.3468, 11.135, 83.155 ) ) ) * 24634.6345 );
-           float h3 = fract( sin( dot( p, vec3( 93.9898, 67.345, 28.123 ) ) ) * 93726.1234 );
-           return normalize( vec3( h, h2, h3 ) * 2.0 - 1.0 );
-         }`,
+        HOVER_VERTEX_COMMON,
       )
       .replace(
         "#include <begin_vertex>",
-        `vec3 transformed = vec3( position );
-         if ( uHoverRadius > 0.0 ) {
-           vec3 delta = voxelCenter - uHoverCenter;
-           float d = length( delta );
-           if ( d < uHoverRadius ) {
-             float f = 1.0 - d / uHoverRadius;
-             f = f * f;
-             vec3 radial = d > 0.0001 ? delta / d : vec3( 0.0, 1.0, 0.0 );
-             vec3 rnd = groupVoxelRand( voxelCenter );
-             vec3 dir = normalize( radial + rnd * uHoverJitter );
-             float mag = 0.6 + fract( rnd.x * 7.31 + rnd.y * 13.17 ) * 0.8;
-             transformed += dir * f * uHoverStrength * mag;
-           }
-         }`,
+        HOVER_VERTEX_BEGIN,
       );
 
     shader.fragmentShader = shader.fragmentShader
@@ -211,40 +240,14 @@ function createGroupMesh(
     Object.assign(shader.uniforms, sharedUniforms);
     shader.uniforms.uDim = dimUniform;
 
-    // Same displacement as the voxel faces so edges travel with their cube
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
-        `#include <common>
-         attribute vec3 voxelCenter;
-         uniform vec3 uHoverCenter;
-         uniform float uHoverRadius;
-         uniform float uHoverStrength;
-         uniform float uHoverJitter;
-
-         vec3 groupVoxelRand( vec3 p ) {
-           float h  = fract( sin( dot( p, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );
-           float h2 = fract( sin( dot( p, vec3( 39.3468, 11.135, 83.155 ) ) ) * 24634.6345 );
-           float h3 = fract( sin( dot( p, vec3( 93.9898, 67.345, 28.123 ) ) ) * 93726.1234 );
-           return normalize( vec3( h, h2, h3 ) * 2.0 - 1.0 );
-         }`,
+        HOVER_VERTEX_COMMON,
       )
       .replace(
         "#include <begin_vertex>",
-        `vec3 transformed = vec3( position );
-         if ( uHoverRadius > 0.0 ) {
-           vec3 delta = voxelCenter - uHoverCenter;
-           float d = length( delta );
-           if ( d < uHoverRadius ) {
-             float f = 1.0 - d / uHoverRadius;
-             f = f * f;
-             vec3 radial = d > 0.0001 ? delta / d : vec3( 0.0, 1.0, 0.0 );
-             vec3 rnd = groupVoxelRand( voxelCenter );
-             vec3 dir = normalize( radial + rnd * uHoverJitter );
-             float mag = 0.6 + fract( rnd.x * 7.31 + rnd.y * 13.17 ) * 0.8;
-             transformed += dir * f * uHoverStrength * mag;
-           }
-         }`,
+        HOVER_VERTEX_BEGIN,
       );
 
     shader.fragmentShader = shader.fragmentShader
@@ -474,6 +477,12 @@ function getBodyYBounds(): { min: number; max: number } {
   return _bodyYBounds;
 }
 
+// Scratch for the camera fly, reused each frame rather than reallocated.
+const _flySphCur = new THREE.Spherical();
+const _flySphEnd = new THREE.Spherical();
+const _flyOffset = new THREE.Vector3();
+const TWO_PI = Math.PI * 2;
+
 type FlyState = {
   active: boolean;
   target: THREE.Vector3;
@@ -503,10 +512,13 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
       uHoverCenter: { value: new THREE.Vector3(0, -1000, 0) },
       uHoverRadius: { value: 0 },
       uHoverStrength: { value: 0 },
+      uTrailCenter: { value: new THREE.Vector3(0, -1000, 0) },
+      uTrailStrength: { value: 0 },
       uHoverJitter: { value: HOVER_JITTER },
     };
   }
   const sharedUniforms = sharedUniformsRef.current;
+  const trailFade = useRef(1);
 
   // One dim uniform per group mesh (0 = full colour, 1 = full grey)
   const dimUniformsRef = useRef<Map<string, DimUniform>>(new Map());
@@ -564,13 +576,36 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
       }
       const t = 1 - Math.exp(-fly.speed * dt);
       // No y clamp here: fly.camTarget.y is already clamped to the body when the
-      // fly is created, so the lerp lands in range on its own. Clamping the
+      // fly is created, so the flight lands in range on its own. Clamping the
       // in-flight position instead snapped the camera down in a single frame
       // whenever the view started above or below the body.
-      camera.position.lerp(fly.camTarget, t);
-      if (orbitRef.current) {
-        orbitRef.current.target.lerp(fly.target, t);
+      const pivot = orbitRef.current?.target as THREE.Vector3 | undefined;
+      if (pivot) {
+        // Orbit around the body rather than lerping the position straight
+        // there. A straight line between two viewpoints passes far nearer the
+        // body than either end, so the camera used to cut inward and the view
+        // whipped around as it swept past the pivot — and because front and
+        // back groups sit almost opposite each other, their shared upward tilt
+        // sent that path over the head.
+        _flySphCur.setFromVector3(_flyOffset.copy(camera.position).sub(pivot));
+        _flySphEnd.setFromVector3(_flyOffset.copy(fly.camTarget).sub(fly.target));
+
+        pivot.lerp(fly.target, t);
+
+        // Take the short way around, and interpolate the polar angle straight
+        // so the arc stays between the two heights instead of over the top.
+        let dTheta = _flySphEnd.theta - _flySphCur.theta;
+        if (dTheta > Math.PI) dTheta -= TWO_PI;
+        else if (dTheta < -Math.PI) dTheta += TWO_PI;
+
+        _flySphCur.theta += dTheta * t;
+        _flySphCur.phi += (_flySphEnd.phi - _flySphCur.phi) * t;
+        _flySphCur.radius += (_flySphEnd.radius - _flySphCur.radius) * t;
+        _flySphCur.makeSafe();
+        camera.position.copy(pivot).add(_flyOffset.setFromSpherical(_flySphCur));
         orbitRef.current.update();
+      } else {
+        camera.position.lerp(fly.camTarget, t);
       }
       const distPos = camera.position.distanceTo(fly.camTarget);
       const distTarget = orbitRef.current ? orbitRef.current.target.distanceTo(fly.target) : 0;
@@ -590,12 +625,36 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
     }
 
     // --- Hover animation ---
+    // The lead bubble sits exactly on the cursor — anything else reads as lag.
     const target = hoverTarget.current;
+    sharedUniforms.uHoverCenter.value.copy(target.center);
     const ease = target.radius > sharedUniforms.uHoverRadius.value ? EASE_IN : EASE_OUT;
     const t2 = 1 - Math.exp(-ease * dt);
     sharedUniforms.uHoverRadius.value += (target.radius - sharedUniforms.uHoverRadius.value) * t2;
     sharedUniforms.uHoverStrength.value += (target.strength - sharedUniforms.uHoverStrength.value) * t2;
-    sharedUniforms.uHoverCenter.value.copy(target.center);
+
+    // The trail chases the cursor from behind, holding up the voxels the lead
+    // bubble has already left so they settle instead of dropping in one frame.
+    const trail = sharedUniforms.uTrailCenter.value;
+    let gap = trail.distanceTo(target.center);
+    // Faded out and far from the cursor — nothing is displaced here any more, so
+    // the trail can be re-seated without anything visibly moving.
+    if (trailFade.current < TRAIL_FADE_EPS && gap > TRAIL_JUMP_DIST) {
+      trail.copy(target.center);
+      gap = 0;
+    }
+    // A cursor that teleports (a flick, an orbit swinging the body underneath,
+    // one limb sliding in front of another) leaves the trail too far behind to
+    // follow, so it fades where it stands rather than dragging across the body.
+    const stranded = gap > TRAIL_JUMP_DIST;
+    if (!stranded) trail.lerp(target.center, 1 - Math.exp(-TRAIL_FOLLOW * dt));
+    const fadeEase = stranded ? TRAIL_FADE_EASE : EASE_IN;
+    trailFade.current += ((stranded ? 0 : 1) - trailFade.current) * (1 - Math.exp(-fadeEase * dt));
+
+    // Weight by the gap, so a trail sitting on top of the lead adds nothing and
+    // the hold fades out on its own as the trail catches up.
+    sharedUniforms.uTrailStrength.value =
+      sharedUniforms.uHoverStrength.value * smoothstep(0, HOVER_RADIUS, gap) * trailFade.current;
 
     // --- Project focused group centroid to screen for bear overlay ---
     if (onBearPosition) {
@@ -681,12 +740,13 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
 
 type SceneProps = {
   focusGroup: string | null;
+  resetSignal?: number;
   autoRotate?: boolean;
   onBearPosition?: (pos: { x: number; y: number } | null) => void;
   onGroupClick?: (group: string) => void;
 };
 
-function Scene({ focusGroup, autoRotate = false, onBearPosition, onGroupClick }: SceneProps) {
+function Scene({ focusGroup, resetSignal = 0, autoRotate = false, onBearPosition, onGroupClick }: SceneProps) {
   const orbitRef = useRef<any>(null);
 
   const flyState = useRef<FlyState>({
@@ -698,10 +758,16 @@ function Scene({ focusGroup, autoRotate = false, onBearPosition, onGroupClick }:
   });
 
   const prevFocusGroup = useRef<string | null>(null);
-  if (focusGroup !== prevFocusGroup.current) {
+  // Bumping resetSignal flies the camera home even when the selection does not
+  // change — otherwise "reset view" does nothing at all with no group selected,
+  // which is exactly when someone has orbited off and wants the default back.
+  const prevResetSignal = useRef(resetSignal);
+  const resetRequested = resetSignal !== prevResetSignal.current;
+  if (focusGroup !== prevFocusGroup.current || resetRequested) {
     prevFocusGroup.current = focusGroup;
+    prevResetSignal.current = resetSignal;
 
-    if (focusGroup) {
+    if (focusGroup && !resetRequested) {
       const focus = computeGroupFocus(focusGroup);
       if (focus) {
         const camPos = focus.center.clone().addScaledVector(focus.dir, FLY_ZOOM_DISTANCE);
@@ -745,13 +811,15 @@ function Scene({ focusGroup, autoRotate = false, onBearPosition, onGroupClick }:
 
 type VoxelBrainProps = {
   focusGroup?: string | null;
+  /** Change this value to fly the camera back to the default view. */
+  resetSignal?: number;
   autoRotate?: boolean;
   style?: React.CSSProperties;
   onBearPosition?: (pos: { x: number; y: number } | null) => void;
   onGroupClick?: (group: string) => void;
 };
 
-export default function VoxelBrain({ focusGroup = null, autoRotate = false, style, onBearPosition, onGroupClick }: VoxelBrainProps) {
+export default function VoxelBrain({ focusGroup = null, resetSignal = 0, autoRotate = false, style, onBearPosition, onGroupClick }: VoxelBrainProps) {
   return (
     <Canvas
       camera={{ position: [7, 0.3, 7], fov: 42, near: 0.5, far: 80 }}
@@ -759,7 +827,7 @@ export default function VoxelBrain({ focusGroup = null, autoRotate = false, styl
       dpr={[1, 2]}
       style={{ background: "transparent", ...style }}
     >
-      <Scene focusGroup={focusGroup} autoRotate={autoRotate} onBearPosition={onBearPosition} onGroupClick={onGroupClick} />
+      <Scene focusGroup={focusGroup} resetSignal={resetSignal} autoRotate={autoRotate} onBearPosition={onBearPosition} onGroupClick={onGroupClick} />
     </Canvas>
   );
 }
