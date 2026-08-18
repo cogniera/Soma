@@ -16,6 +16,12 @@ const FACES: Array<{
   { normal: [ 0, 0,-1], corners: [[-1,-1,-1],[-1, 1,-1],[ 1, 1,-1],[ 1,-1,-1]] },
 ];
 
+// A press only counts as a muscle selection if it was short and stayed put —
+// otherwise it was someone dragging to orbit the body, and releasing over a
+// muscle should not select it.
+const CLICK_MAX_MS = 250;
+const CLICK_MAX_DRIFT_PX = 6;
+
 const HOVER_RADIUS = 0.2;
 const HOVER_STRENGTH = 0.28;
 const HOVER_JITTER = 0.08;
@@ -557,9 +563,11 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
         fly.speed = Math.max(FLY_SPEED, decayCount / FLY_TARGET_DURATION);
       }
       const t = 1 - Math.exp(-fly.speed * dt);
+      // No y clamp here: fly.camTarget.y is already clamped to the body when the
+      // fly is created, so the lerp lands in range on its own. Clamping the
+      // in-flight position instead snapped the camera down in a single frame
+      // whenever the view started above or below the body.
       camera.position.lerp(fly.camTarget, t);
-      const { min: yMin, max: yMax } = getBodyYBounds();
-      camera.position.y = Math.max(yMin, Math.min(yMax, camera.position.y));
       if (orbitRef.current) {
         orbitRef.current.target.lerp(fly.target, t);
         orbitRef.current.update();
@@ -622,13 +630,28 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
     hoverTarget.current.strength = 0;
   };
 
-  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+  const pressRef = useRef<{ t: number; x: number; y: number } | null>(null);
+
+  const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+    pressRef.current = { t: performance.now(), x: e.clientX, y: e.clientY };
+  };
+
+  const handlePointerUp = (e: ThreeEvent<PointerEvent>) => {
+    const press = pressRef.current;
+    pressRef.current = null;
+    if (!press) return;
+
+    // Deliberate click, or the tail end of an orbit drag?
+    const heldMs = performance.now() - press.t;
+    const drift = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+    if (heldMs > CLICK_MAX_MS || drift > CLICK_MAX_DRIFT_PX) return;
+
     e.stopPropagation();
     hoverTarget.current.radius = 0;
     hoverTarget.current.strength = 0;
     if (!onGroupClick || !groupLookup) return;
     const { map, inv, voxelSize, pack } = groupLookup;
-    // Shift click point inward by 40% of voxelSize along the face normal so we
+    // Shift the hit point inward by 40% of voxelSize along the face normal so we
     // land inside the owning voxel rather than on its outer boundary.
     const inset = voxelSize * 0.4;
     const n = e.face?.normal;
@@ -649,7 +672,8 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
         dispose={null}
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}
-        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
       />
     </>
   );
