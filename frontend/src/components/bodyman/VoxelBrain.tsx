@@ -497,9 +497,10 @@ type ManProps = {
   orbitRef: React.MutableRefObject<any>;
   onBearPosition?: (pos: { x: number; y: number } | null) => void;
   onGroupClick?: (group: string) => void;
+  disperse?: boolean;
 };
 
-function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: ManProps) {
+function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick, disperse = true }: ManProps) {
   const hoverTarget = useRef({
     center: new THREE.Vector3(0, -1000, 0),
     radius: 0,
@@ -678,6 +679,13 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
 
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+    // During a check-in the body is a diagram being explained, not a toy — the
+    // voxels stay put so the muscle under discussion reads clearly.
+    if (!disperse) {
+      hoverTarget.current.radius = 0;
+      hoverTarget.current.strength = 0;
+      return;
+    }
     hoverTarget.current.center.copy(e.point);
     hoverTarget.current.radius = HOVER_RADIUS;
     hoverTarget.current.strength = HOVER_STRENGTH;
@@ -744,9 +752,10 @@ type SceneProps = {
   autoRotate?: boolean;
   onBearPosition?: (pos: { x: number; y: number } | null) => void;
   onGroupClick?: (group: string) => void;
+  disperse?: boolean;
 };
 
-function Scene({ focusGroup, resetSignal = 0, autoRotate = false, onBearPosition, onGroupClick }: SceneProps) {
+function Scene({ focusGroup, resetSignal = 0, autoRotate = false, onBearPosition, onGroupClick, disperse = true }: SceneProps) {
   const orbitRef = useRef<any>(null);
 
   const flyState = useRef<FlyState>({
@@ -793,7 +802,7 @@ function Scene({ focusGroup, resetSignal = 0, autoRotate = false, onBearPosition
       <ambientLight intensity={1.4} />
       <directionalLight position={[-6, 8,  6]} intensity={0.6} />
       <directionalLight position={[ 6, 6, -6]} intensity={0.6} />
-      <Man focusGroup={focusGroup} flyState={flyState} orbitRef={orbitRef} onBearPosition={onBearPosition} onGroupClick={onGroupClick} />
+      <Man focusGroup={focusGroup} flyState={flyState} orbitRef={orbitRef} onBearPosition={onBearPosition} onGroupClick={onGroupClick} disperse={disperse} />
       <OrbitControls
         ref={orbitRef}
         enablePan={false}
@@ -823,9 +832,14 @@ type VoxelBrainProps = {
    * set `pointerEvents: none`, which lets the click straight through to here.
    */
   onBackgroundClick?: () => void;
+  /**
+   * Whether hovering the body pushes its voxels apart. On by default for the
+   * Explore screen; the check-in flow turns it off.
+   */
+  disperse?: boolean;
 };
 
-export default function VoxelBrain({ focusGroup = null, resetSignal = 0, autoRotate = false, style, onBearPosition, onGroupClick, onBackgroundClick }: VoxelBrainProps) {
+export default function VoxelBrain({ focusGroup = null, resetSignal = 0, autoRotate = false, style, onBearPosition, onGroupClick, onBackgroundClick, disperse = true }: VoxelBrainProps) {
   return (
     <Canvas
       camera={{ position: [7, 0.3, 7], fov: 42, near: 0.5, far: 80 }}
@@ -837,7 +851,7 @@ export default function VoxelBrain({ focusGroup = null, resetSignal = 0, autoRot
       // not count as a click.
       onPointerMissed={onBackgroundClick ? () => onBackgroundClick() : undefined}
     >
-      <Scene focusGroup={focusGroup} resetSignal={resetSignal} autoRotate={autoRotate} onBearPosition={onBearPosition} onGroupClick={onGroupClick} />
+      <Scene focusGroup={focusGroup} resetSignal={resetSignal} autoRotate={autoRotate} onBearPosition={onBearPosition} onGroupClick={onGroupClick} disperse={disperse} />
     </Canvas>
   );
 }

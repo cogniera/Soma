@@ -26,12 +26,12 @@ export default function SymptomInput({ onSubmit, onVisual, onBack }) {
   return (
     <div className="screen symptom-screen" style={{ overflow: 'hidden' }}>
       <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
-        <button className="outline-btn" onClick={onBack}>← Back</button>
+        <button className="outline-btn" onClick={onBack}><span className="outline-btn__arrow">←</span>Back</button>
       </div>
 
       {/* 3D model — right half, behind content */}
       <div style={{ position: 'fixed', top: 0, right: '0%', width: '42%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
-        <VoxelBrain autoRotate style={{ pointerEvents: 'none' }} />
+        <VoxelBrain autoRotate disperse={false} style={{ pointerEvents: 'none' }} />
       </div>
 
       {/* Content — natural width, left side */}

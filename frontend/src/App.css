@@ -25,6 +25,12 @@ html, body {
   --green:        #3DB88A;
   --card-bg:      rgba(245, 166, 35, 0.06);
   --card-border:  rgba(232, 137, 43, 0.2);
+  /* Explore screen palette — kept in sync with SOMA in Explore.jsx */
+  --surface:      #FFFFFF;
+  --honey-300:    #F2B94A;
+  --honey-400:    #E89B2D;
+  --honey-500:    #D4811E;
+  --shadow-md:    0 2px 6px rgba(90,66,38,.05), 0 12px 28px rgba(90,66,38,.07);
   --font:         'Nunito', system-ui, sans-serif;
   --font-display: 'Baloo 2', cursive;
   --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -298,16 +304,24 @@ html, body {
 }
 .cta-btn--red:hover:not(:disabled) { box-shadow:0 8px 28px rgba(224,82,82,.5); }
 
+/* Matches the pill buttons on the Explore screen (Explore.jsx) so the
+   check-in flow and Explore read as one set. */
 .outline-btn {
-  padding:9px 18px;border-radius:100px;
-  border:1.5px solid var(--card-border);background:transparent;
-  color:var(--soft-brown);font-family:var(--font);font-size:.85rem;cursor:pointer;
-  transition:border-color .2s,color .2s,background .2s;
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 18px;border-radius:999px;
+  border:1.5px solid var(--honey-300);background:var(--surface);
+  color:var(--honey-500);
+  font-family:var(--font);font-size:14px;font-weight:700;
+  cursor:pointer;
+  box-shadow:var(--shadow-md);
+  transition:background .18s ease,border-color .18s ease,transform .12s ease;
 }
 .outline-btn:hover {
-  border-color:var(--honey);color:var(--brown);
-  background:rgba(245,166,35,.06);
+  background:#FFFAEC;border-color:var(--honey-400);
 }
+.outline-btn:active { transform:translateY(1px); }
+/* The arrow is set slightly larger than the label, as in Explore. */
+.outline-btn__arrow { font-size:16px;line-height:1; }
 
 /* ── Voice button ────────────────────────────────────────────── */
 .voice-btn {

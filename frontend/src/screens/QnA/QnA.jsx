@@ -63,6 +63,7 @@ function VisualPanel({ storyTrigger, bearState, onBearPosition }) {
       <VoxelBrain
         focusGroup={focusGroup}
         autoRotate={bearState === 'idle'}
+        disperse={false}
         style={{ width: '100%', height: '100%' }}
         onBearPosition={onBearPosition}
       />
@@ -266,7 +267,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
     <div className="qna-layout">
       {/* Back button */}
       <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
-        <button className="outline-btn" onClick={() => { stopSpeaking(); onOsoMood?.('idle'); onBack() }}>← Back</button>
+        <button className="outline-btn" onClick={() => { stopSpeaking(); onOsoMood?.('idle'); onBack() }}><span className="outline-btn__arrow">←</span>Back</button>
       </div>
 
       {/* Left: chat */}

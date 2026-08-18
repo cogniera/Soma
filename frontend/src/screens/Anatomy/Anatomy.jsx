@@ -52,10 +52,10 @@ export default function Anatomy({ bodyRegion, symptomSummary, focusGroup, onBack
 
   return (
     <div style={{ position: 'fixed', inset: 0 }}>
-      <VoxelBrain focusGroup={activeFocus} />
+      <VoxelBrain focusGroup={activeFocus} disperse={false} />
 
       <div style={{ position: 'absolute', bottom: 24, left: 24, display: 'flex', gap: 10 }}>
-        <button className="outline-btn" onClick={onBack}>← Back to body map</button>
+        <button className="outline-btn" onClick={onBack}><span className="outline-btn__arrow">←</span>Back to body map</button>
         <button className="outline-btn" onClick={onRestart}>Start over</button>
       </div>
     </div>
