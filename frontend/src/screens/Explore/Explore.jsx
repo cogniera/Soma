@@ -87,7 +87,12 @@ export default function Explore({ onBack }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, fontFamily: SOMA.fontBody }}>
-      <VoxelBrain focusGroup={active} resetSignal={resetSignal} onGroupClick={toggle} />
+      <VoxelBrain
+        focusGroup={active}
+        resetSignal={resetSignal}
+        onGroupClick={toggle}
+        onBackgroundClick={() => setActive(null)}
+      />
 
       {/* Group buttons — right side panel, 3 per row */}
       <div style={{
@@ -212,7 +217,6 @@ export default function Explore({ onBack }) {
           padding: '22px 24px',
           color: SOMA.ink900,
           boxShadow: SOMA.shadowLg,
-          pointerEvents: 'none',
           fontFamily: SOMA.fontBody,
         }}>
           {/* Honey ribbon accent */}

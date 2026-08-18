@@ -817,15 +817,25 @@ type VoxelBrainProps = {
   style?: React.CSSProperties;
   onBearPosition?: (pos: { x: number; y: number } | null) => void;
   onGroupClick?: (group: string) => void;
+  /**
+   * Fired when a click lands on empty space rather than the body. Overlay DOM
+   * panels never reach the canvas, so they do not count as a miss — unless they
+   * set `pointerEvents: none`, which lets the click straight through to here.
+   */
+  onBackgroundClick?: () => void;
 };
 
-export default function VoxelBrain({ focusGroup = null, resetSignal = 0, autoRotate = false, style, onBearPosition, onGroupClick }: VoxelBrainProps) {
+export default function VoxelBrain({ focusGroup = null, resetSignal = 0, autoRotate = false, style, onBearPosition, onGroupClick, onBackgroundClick }: VoxelBrainProps) {
   return (
     <Canvas
       camera={{ position: [7, 0.3, 7], fov: 42, near: 0.5, far: 80 }}
       gl={{ antialias: true, alpha: true }}
       dpr={[1, 2]}
       style={{ background: "transparent", ...style }}
+      // Only fires when the click hit nothing and the pointer barely moved
+      // since it went down, so releasing an orbit drag over empty space does
+      // not count as a click.
+      onPointerMissed={onBackgroundClick ? () => onBackgroundClick() : undefined}
     >
       <Scene focusGroup={focusGroup} resetSignal={resetSignal} autoRotate={autoRotate} onBearPosition={onBearPosition} onGroupClick={onGroupClick} />
     </Canvas>
