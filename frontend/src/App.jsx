@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import './App.css'
 
 import Intro      from './screens/Intro/Intro'
@@ -10,6 +10,7 @@ import BodyMap    from './screens/BodyMap/BodyMap'
 import Anatomy    from './screens/Anatomy/Anatomy'
 import OsoCorner  from './components/OsoCorner/OsoCorner'
 import Explore     from './screens/Explore/Explore'
+import { preloadVoxelModel } from './components/bodyman/VoxelBrain'
 
 // Phase flow: intro → landing → symptom → qna → triage → bodymap → anatomy
 // On refresh: skip intro, start at landing (sessionStorage flag)
@@ -31,6 +32,18 @@ export default function App() {
   const [session, setSession] = useState(INITIAL_SESSION)
   const [osoMood, setOsoMood] = useState('idle')
   const [mascotReady, setMascotReady] = useState(alreadyVisited)
+
+  // Build the voxel model while the landing page is idle, so the first screen
+  // that shows it does not have to wait on it.
+  useEffect(() => {
+    const idle = window.requestIdleCallback
+      ? window.requestIdleCallback(preloadVoxelModel, { timeout: 2000 })
+      : window.setTimeout(preloadVoxelModel, 200)
+    return () => {
+      if (window.cancelIdleCallback) window.cancelIdleCallback(idle)
+      else window.clearTimeout(idle)
+    }
+  }, [])
 
   const merge = (patch) => setSession(prev => ({ ...prev, ...patch }))
 

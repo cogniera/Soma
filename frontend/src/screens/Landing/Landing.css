@@ -112,6 +112,10 @@
 .landing-brand-mark img {
   height: 100%;
   width: auto;
+  /* Reserve the logo's width before it decodes. Without this the img is 0px
+     wide until load, which collapses .landing-brand and drags the
+     space-between nav links leftward until the image pops in. */
+  aspect-ratio: 759 / 183;
   object-fit: contain;
   display: block;
 }

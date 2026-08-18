@@ -79,14 +79,6 @@ export default function Explore({ onBack }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, fontFamily: SOMA.fontBody }}>
-      {/* Google Fonts (matches Landing) */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Nunito:wght@400;600;700;800&display=swap"
-      />
-
       <VoxelBrain focusGroup={active} onGroupClick={toggle} />
 
       {/* Group buttons — right side panel, 3 per row */}

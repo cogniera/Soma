@@ -4,14 +4,6 @@ import bearsImg from './assets/bears-anatomy.png'
 export default function Landing({ onChat, onExplore }) {
   return (
     <div className="landing-root">
-      {/* Google Fonts */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Nunito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
-      />
-
       {/* Wavy ribbon background */}
       <div className="landing-hero-bg">
         <svg viewBox="0 0 1280 720" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100vw', height: '100vh' }}>
@@ -38,7 +30,7 @@ export default function Landing({ onChat, onExplore }) {
           <nav className="landing-nav">
             <div className="landing-brand">
               <span className="landing-brand-mark">
-                <img src="/mainlogo.png" alt="Soma" />
+                <img src="/mainlogo.png" alt="Soma" width="759" height="183" />
               </span>
             </div>
 
@@ -46,7 +38,7 @@ export default function Landing({ onChat, onExplore }) {
               <a href="#" className="is-active">Home</a>
               <a href="https://github.com/cogniera/Soma" target="_blank" rel="noopener noreferrer">How it works</a>
               <a href="https://github.com/cogniera/Soma" target="_blank" rel="noopener noreferrer">GitHub</a>
-              <a href="https://devpost.com/software/soma" target="_blank" rel="noopener noreferrer">Devpost</a>
+              <a href="https://devpost.com/software/soma-4wzq57" target="_blank" rel="noopener noreferrer">Devpost</a>
             </div>
 
             <div className="landing-nav-actions">

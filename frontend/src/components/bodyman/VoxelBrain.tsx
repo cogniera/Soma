@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -39,12 +39,16 @@ type SharedUniforms = {
 
 type DimUniform = { value: number };
 
-function buildGroupMesh(
+type GroupGeometry = { geometry: THREE.BufferGeometry; edgeGeo: THREE.BufferGeometry };
+
+/**
+ * Builds the geometry for one muscle group. Pure vertex data — no materials, so
+ * the result is safe to cache across mounts (see `getGroupGeometries`).
+ */
+function buildGroupGeometry(
   grid: HeadGrid,
   r: number, g: number, b: number,
-  sharedUniforms: SharedUniforms,
-  dimUniform: DimUniform,
-): THREE.Mesh {
+): GroupGeometry {
   const v = grid.voxelSize;
   const half = v * 0.5;
   const count = grid.cells.length;
@@ -96,12 +100,52 @@ function buildGroupMesh(
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   geometry.computeBoundingSphere();
 
+  // Build edge lines — 12 edges per voxel box
+  const EDGE_PAIRS: Array<[number, number, number][]> = [
+    [[-1,-1,-1],[ 1,-1,-1]], [[-1, 1,-1],[ 1, 1,-1]],
+    [[-1,-1, 1],[ 1,-1, 1]], [[-1, 1, 1],[ 1, 1, 1]],
+    [[-1,-1,-1],[-1, 1,-1]], [[ 1,-1,-1],[ 1, 1,-1]],
+    [[-1,-1, 1],[-1, 1, 1]], [[ 1,-1, 1],[ 1, 1, 1]],
+    [[-1,-1,-1],[-1,-1, 1]], [[ 1,-1,-1],[ 1,-1, 1]],
+    [[-1, 1,-1],[-1, 1, 1]], [[ 1, 1,-1],[ 1, 1, 1]],
+  ];
+  const edgePositions = new Float32Array(count * 12 * 2 * 3);
+  const edgeCenters = new Float32Array(count * 12 * 2 * 3);
+  let ei = 0;
+  for (let i = 0; i < grid.cells.length; i++) {
+    const c = grid.cells[i];
+    for (const [a, b] of EDGE_PAIRS) {
+      edgeCenters[ei + 0] = c.x; edgeCenters[ei + 1] = c.y; edgeCenters[ei + 2] = c.z;
+      edgeCenters[ei + 3] = c.x; edgeCenters[ei + 4] = c.y; edgeCenters[ei + 5] = c.z;
+      edgePositions[ei++] = c.x + a[0] * half;
+      edgePositions[ei++] = c.y + a[1] * half;
+      edgePositions[ei++] = c.z + a[2] * half;
+      edgePositions[ei++] = c.x + b[0] * half;
+      edgePositions[ei++] = c.y + b[1] * half;
+      edgePositions[ei++] = c.z + b[2] * half;
+    }
+  }
+  const edgeGeo = new THREE.BufferGeometry();
+  edgeGeo.setAttribute("position", new THREE.BufferAttribute(edgePositions, 3));
+  edgeGeo.setAttribute("voxelCenter", new THREE.BufferAttribute(edgeCenters, 3));
+
+  return { geometry, edgeGeo };
+}
+
+/**
+ * Wraps cached geometry in freshly-created materials. Materials are per-mount
+ * because they carry this screen's hover + dim uniforms; geometry is shared.
+ */
+function createGroupMesh(
+  { geometry, edgeGeo }: GroupGeometry,
+  sharedUniforms: SharedUniforms,
+  dimUniform: DimUniform,
+): THREE.Mesh {
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.6,
+    roughness: 0.85,
     metalness: 0,
   });
-
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, sharedUniforms);
     shader.uniforms.uDim = dimUniform;
@@ -154,7 +198,66 @@ function buildGroupMesh(
       );
   };
 
-  return new THREE.Mesh(geometry, material);
+  const mesh = new THREE.Mesh(geometry, material);
+
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 });
+  edgeMat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, sharedUniforms);
+    shader.uniforms.uDim = dimUniform;
+
+    // Same displacement as the voxel faces so edges travel with their cube
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+         attribute vec3 voxelCenter;
+         uniform vec3 uHoverCenter;
+         uniform float uHoverRadius;
+         uniform float uHoverStrength;
+         uniform float uHoverJitter;
+
+         vec3 groupVoxelRand( vec3 p ) {
+           float h  = fract( sin( dot( p, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );
+           float h2 = fract( sin( dot( p, vec3( 39.3468, 11.135, 83.155 ) ) ) * 24634.6345 );
+           float h3 = fract( sin( dot( p, vec3( 93.9898, 67.345, 28.123 ) ) ) * 93726.1234 );
+           return normalize( vec3( h, h2, h3 ) * 2.0 - 1.0 );
+         }`,
+      )
+      .replace(
+        "#include <begin_vertex>",
+        `vec3 transformed = vec3( position );
+         if ( uHoverRadius > 0.0 ) {
+           vec3 delta = voxelCenter - uHoverCenter;
+           float d = length( delta );
+           if ( d < uHoverRadius ) {
+             float f = 1.0 - d / uHoverRadius;
+             f = f * f;
+             vec3 radial = d > 0.0001 ? delta / d : vec3( 0.0, 1.0, 0.0 );
+             vec3 rnd = groupVoxelRand( voxelCenter );
+             vec3 dir = normalize( radial + rnd * uHoverJitter );
+             float mag = 0.6 + fract( rnd.x * 7.31 + rnd.y * 13.17 ) * 0.8;
+             transformed += dir * f * uHoverStrength * mag;
+           }
+         }`,
+      );
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+         uniform float uDim;`,
+      )
+      .replace(
+        "#include <dithering_fragment>",
+        `#include <dithering_fragment>
+         gl_FragColor.a = mix(0.18, 0.0, uDim);`,
+      );
+  };
+
+  const edges = new THREE.LineSegments(edgeGeo, edgeMat);
+  mesh.add(edges);
+
+  return mesh;
 }
 
 const GROUP_COLORS: Record<string, string> = {
@@ -218,8 +321,8 @@ function computeGroupFocus(groupName: string): { center: THREE.Vector3; dir: THR
   return { center: sum, dir };
 }
 
-function buildRaycastMesh(entries: ReturnType<typeof buildGroupGrids>): THREE.Mesh {
-  if (entries.length === 0) return new THREE.Mesh();
+function buildRaycastGeometry(entries: ReturnType<typeof buildGroupGrids>): THREE.BufferGeometry {
+  if (entries.length === 0) return new THREE.BufferGeometry();
 
   const voxelSize = entries[0].grid.voxelSize;
   const invV = 1 / voxelSize;
@@ -273,7 +376,76 @@ function buildRaycastMesh(entries: ReturnType<typeof buildGroupGrids>): THREE.Me
   geo.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
   geo.computeBoundingSphere();
 
-  return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+  return geo;
+}
+
+/* ------------------------------------------------------------------ *
+ * Module-level cache.
+ *
+ * VoxelBrain is mounted by four different screens, and every mount used to
+ * rebuild all 62k voxels from scratch: ~112 MB of typed arrays, thrown away
+ * again on unmount. None of that data varies, so it is built at most once per
+ * page load and shared by every mount. Materials are still per-mount (they
+ * hold each screen's hover/dim uniforms), and the cached geometry is never
+ * disposed — hence `dispose={null}` on the primitives that use it.
+ * ------------------------------------------------------------------ */
+
+type GroupCache = {
+  entries: ReturnType<typeof buildGroupGrids>;
+  geometries: Array<{ name: string; geo: GroupGeometry }>;
+  raycastGeometry: THREE.BufferGeometry;
+  lookup: {
+    map: Map<number, string>;
+    inv: number;
+    voxelSize: number;
+    pack: (ix: number, iy: number, iz: number) => number;
+  } | null;
+};
+
+let _voxelCache: GroupCache | null = null;
+
+function getVoxelCache(): GroupCache {
+  if (_voxelCache) return _voxelCache;
+
+  const entries = buildGroupGrids();
+
+  const color = new THREE.Color();
+  const geometries = entries.map(({ name, grid }, i) => {
+    const hex = GROUP_COLORS[name];
+    if (hex) color.set(hex);
+    else color.setHSL((i / entries.length) % 1, 0.7, 0.55);
+    return { name, geo: buildGroupGeometry(grid, color.r, color.g, color.b) };
+  });
+
+  const raycastGeometry = buildRaycastGeometry(entries);
+
+  // Spatial hash: packed voxel index → group name for O(1) click lookup
+  let lookup: GroupCache["lookup"] = null;
+  if (entries.length > 0) {
+    const voxelSize = entries[0].grid.voxelSize;
+    const inv = 1 / voxelSize;
+    const B = 2048;
+    const pack = (ix: number, iy: number, iz: number) =>
+      (ix + 1024) + (iy + 1024) * B + (iz + 1024) * B * B;
+    const map = new Map<number, string>();
+    for (const { name, grid } of entries) {
+      for (const c of grid.cells) {
+        map.set(pack(Math.floor(c.x * inv), Math.floor(c.y * inv), Math.floor(c.z * inv)), name);
+      }
+    }
+    lookup = { map, inv, voxelSize, pack };
+  }
+
+  _voxelCache = { entries, geometries, raycastGeometry, lookup };
+  return _voxelCache;
+}
+
+/**
+ * Builds the voxel data ahead of time so the first screen that shows the model
+ * does not pay for it. Safe to call repeatedly; work happens only once.
+ */
+export function preloadVoxelModel(): void {
+  getVoxelCache();
 }
 
 let _bodyYBounds: { min: number; max: number } | null = null;
@@ -333,44 +505,44 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
   // One dim uniform per group mesh (0 = full colour, 1 = full grey)
   const dimUniformsRef = useRef<Map<string, DimUniform>>(new Map());
 
-  const groupEntries = useMemo(() => buildGroupGrids(), []);
+  const cache = getVoxelCache();
+  const groupLookup = cache.lookup;
 
-  const raycastMesh = useMemo(() => buildRaycastMesh(groupEntries), [groupEntries]);
+  const raycastMesh = useMemo(
+    () => new THREE.Mesh(
+      cache.raycastGeometry,
+      new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }),
+    ),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  []);
 
   const groupMeshes = useMemo(() => {
-    const color = new THREE.Color();
-    return groupEntries.map(({ name, grid }, i) => {
-      const hex = GROUP_COLORS[name];
-      if (hex) color.set(hex);
-      else color.setHSL((i / groupEntries.length) % 1, 0.7, 0.55);
-
+    return cache.geometries.map(({ name, geo }) => {
       // Create per-mesh dim uniform, starting at 0 (full colour)
       if (!dimUniformsRef.current.has(name)) {
         dimUniformsRef.current.set(name, { value: 0.0 });
       }
       const dimUniform = dimUniformsRef.current.get(name)!;
 
-      return { name, mesh: buildGroupMesh(grid, color.r, color.g, color.b, sharedUniforms, dimUniform) };
+      return { name, mesh: createGroupMesh(geo, sharedUniforms, dimUniform) };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Spatial hash: packed voxel index → group name for O(1) click lookup
-  const groupLookup = useMemo(() => {
-    if (groupEntries.length === 0) return null;
-    const voxelSize = groupEntries[0].grid.voxelSize;
-    const inv = 1 / voxelSize;
-    const B = 2048;
-    const pack = (ix: number, iy: number, iz: number) =>
-      (ix + 1024) + (iy + 1024) * B + (iz + 1024) * B * B;
-    const map = new Map<number, string>();
-    for (const { name, grid } of groupEntries) {
-      for (const c of grid.cells) {
-        map.set(pack(Math.floor(c.x * inv), Math.floor(c.y * inv), Math.floor(c.z * inv)), name);
+  // Cached geometry outlives this mount, so only the per-mount materials are
+  // disposed here.
+  useEffect(() => {
+    return () => {
+      for (const { mesh } of groupMeshes) {
+        (mesh.material as THREE.Material).dispose();
+        for (const child of mesh.children) {
+          if (child instanceof THREE.LineSegments) child.material.dispose();
+        }
       }
-    }
-    return { map, inv, voxelSize, pack };
-  }, [groupEntries]);
+      (raycastMesh.material as THREE.Material).dispose();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { camera, size } = useThree();
   const bearPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -470,10 +642,11 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick }: M
   return (
     <>
       {groupMeshes.map(({ name, mesh }) => (
-        <primitive key={name} object={mesh} />
+        <primitive key={name} object={mesh} dispose={null} />
       ))}
       <primitive
         object={raycastMesh}
+        dispose={null}
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}
         onClick={handleClick}
@@ -527,10 +700,9 @@ function Scene({ focusGroup, autoRotate = false, onBearPosition, onGroupClick }:
 
   return (
     <>
-      <ambientLight intensity={0.25} />
-      <directionalLight position={[ 5, 12,  7]} intensity={1.6} />
-      <directionalLight position={[-5,  2, -4]} intensity={0.4} />
-      <directionalLight position={[ 0,  4, -9]} intensity={0.5} />
+      <ambientLight intensity={1.4} />
+      <directionalLight position={[-6, 8,  6]} intensity={0.6} />
+      <directionalLight position={[ 6, 6, -6]} intensity={0.6} />
       <Man focusGroup={focusGroup} flyState={flyState} orbitRef={orbitRef} onBearPosition={onBearPosition} onGroupClick={onGroupClick} />
       <OrbitControls
         ref={orbitRef}
