@@ -44,6 +44,11 @@ const FLY_ARRIVE_THRESHOLD = 0.05;
 const FLY_ZOOM_DISTANCE = 8;
 const FLY_TARGET_DURATION = 1.5;
 
+/** Camera offset from the body that frames it. The field of view is vertical
+ *  and the body is tall and narrow, so this frames correctly at any aspect
+ *  ratio — a portrait viewport loses width, which this model has to spare. */
+const HOME_OFFSET = 7;
+
 const FADE_SPEED = 4.0;        // lerp speed for dim transition
 const DIM_AMOUNT = 0.92;       // how far toward grey (0 = no change, 1 = full grey)
 
@@ -790,7 +795,7 @@ function Scene({ focusGroup, resetSignal = 0, autoRotate = false, onBearPosition
         active: true,
         arrived: false,
         target: new THREE.Vector3(0, 0.3, 0),
-        camTarget: new THREE.Vector3(7, 0.3, 7),
+        camTarget: new THREE.Vector3(HOME_OFFSET, 0.3, HOME_OFFSET),
         speed: 0,
       };
       if (orbitRef.current) orbitRef.current.enabled = false;
@@ -842,7 +847,7 @@ type VoxelBrainProps = {
 export default function VoxelBrain({ focusGroup = null, resetSignal = 0, autoRotate = false, style, onBearPosition, onGroupClick, onBackgroundClick, disperse = true }: VoxelBrainProps) {
   return (
     <Canvas
-      camera={{ position: [7, 0.3, 7], fov: 42, near: 0.5, far: 80 }}
+      camera={{ position: [HOME_OFFSET, 0.3, HOME_OFFSET], fov: 42, near: 0.5, far: 80 }}
       gl={{ antialias: true, alpha: true }}
       dpr={[1, 2]}
       style={{ background: "transparent", ...style }}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import VoxelBrain from '../../components/bodyman/VoxelBrain'
+import useMediaQuery, { MOBILE_QUERY } from '../../hooks/useMediaQuery'
 
 const GROUPS = [
   'Face', 'Neck', 'Chest', 'Core', 'Obliques',
@@ -75,6 +76,10 @@ const groupBtnBase = {
 export default function Explore({ onBack }) {
   const [active, setActive] = useState(null)
   const [resetSignal, setResetSignal] = useState(0)
+  const isMobile = useMediaQuery(MOBILE_QUERY)
+  // A phone held sideways has width to spare and almost no height, so it wants
+  // the opposite treatment from a phone held upright.
+  const isShort = useMediaQuery('(max-height: 520px)')
 
   const toggle = (g) => setActive(prev => prev === g ? null : g)
 
@@ -94,11 +99,18 @@ export default function Explore({ onBack }) {
         onBackgroundClick={() => setActive(null)}
       />
 
-      {/* Group buttons — right side panel, 3 per row */}
+      {/* Group buttons — a right-hand rail where there is a column to spare, and
+          a short scrolling bar along the bottom where there is not. A tall
+          bottom sheet would have buried the very model it is there to drive. */}
       <div style={{
-        position: 'absolute', top: '50%', right: 28,
-        transform: 'translateY(-50%)',
-        width: 240,
+        position: 'absolute',
+        ...(isMobile
+          ? { left: 12, right: 12, bottom: 12 }
+          : {
+              top: '50%', right: 28,
+              transform: 'translateY(-50%)',
+              width: 240,
+            }),
         display: 'flex', flexDirection: 'column', gap: 10,
         background: SOMA.surface,
         border: `1px solid ${SOMA.ink300}`,
@@ -106,23 +118,45 @@ export default function Explore({ onBack }) {
         padding: 14,
         boxShadow: SOMA.shadowMd,
       }}>
-        {/* Eyebrow */}
+        {/* Eyebrow — shares its row with Reset once the panel goes horizontal */}
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          fontSize: 11, fontWeight: 800, letterSpacing: '0.20em',
-          textTransform: 'uppercase',
-          color: SOMA.honey500,
-          padding: '2px 4px',
+          display: 'flex', alignItems: 'center', gap: 8,
+          justifyContent: isMobile ? 'space-between' : 'flex-start',
         }}>
           <span style={{
-            width: 7, height: 7, borderRadius: '50%',
-            background: SOMA.honey400,
-            boxShadow: `0 0 0 3px rgba(232,155,45,.18)`,
-          }} />
-          Body Map
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            fontSize: 11, fontWeight: 800, letterSpacing: '0.20em',
+            textTransform: 'uppercase',
+            color: SOMA.honey500,
+            padding: '2px 4px',
+          }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: SOMA.honey400,
+              boxShadow: `0 0 0 3px rgba(232,155,45,.18)`,
+            }} />
+            Body Map
+          </span>
+
+          {isMobile && (
+            <button
+              onClick={resetView}
+              style={{
+                ...groupBtnBase,
+                flex: 'none',
+                background: SOMA.honey400,
+                color: '#fff',
+                border: '1.5px solid transparent',
+                boxShadow: SOMA.glow,
+              }}
+            >
+              Reset view
+            </button>
+          )}
         </div>
 
         {/* Reset */}
+        {!isMobile && (
         <button
           onClick={resetView}
           style={{
@@ -138,9 +172,22 @@ export default function Explore({ onBack }) {
         >
           Reset view
         </button>
+        )}
 
-        {/* Group buttons — 3 per row */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {/* Group buttons — 3 per row, or one swipeable row on a phone */}
+        <div style={{
+          display: 'flex',
+          gap: 6,
+          ...(isMobile
+            ? {
+                flexWrap: 'nowrap',
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                paddingBottom: 2,
+                scrollbarWidth: 'none',
+              }
+            : { flexWrap: 'wrap' }),
+        }}>
           {GROUPS.map(g => {
             const isActive = active === g
             return (
@@ -149,6 +196,7 @@ export default function Explore({ onBack }) {
                 onClick={() => toggle(g)}
                 style={{
                   ...groupBtnBase,
+                  ...(isMobile ? { flex: '0 0 auto', padding: '9px 14px' } : null),
                   background: isActive ? SOMA.ink900 : SOMA.surface2,
                   color: isActive ? '#fff' : SOMA.ink700,
                   border: `1.5px solid ${isActive ? SOMA.ink900 : SOMA.ink300}`,
@@ -174,7 +222,7 @@ export default function Explore({ onBack }) {
       </div>
 
       {/* Back button */}
-      <div style={{ position: 'absolute', top: 24, left: 24 }}>
+      <div style={{ position: 'absolute', top: isMobile ? 14 : 24, left: isMobile ? 12 : 24 }}>
         <button
           onClick={onBack}
           style={{
@@ -208,9 +256,26 @@ export default function Explore({ onBack }) {
       {/* Description panel — left side, appears when a group is selected */}
       {active && (
         <div style={{
-          position: 'absolute', top: '50%', left: 28,
-          transform: 'translateY(-50%)',
-          width: 320,
+          position: 'absolute',
+          ...(!isMobile
+            ? {
+                top: '50%', left: 28,
+                transform: 'translateY(-50%)',
+                width: 320,
+              }
+            : isShort
+              ? {
+                  top: 64, bottom: 96, left: 12,
+                  width: 'min(46vw, 320px)',
+                  overflowY: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                }
+              : {
+                  top: 72, left: 12, right: 12,
+                  maxHeight: '32vh',
+                  overflowY: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                }),
           background: SOMA.surface,
           border: `1px solid ${SOMA.ink300}`,
           borderRadius: 18,

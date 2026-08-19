@@ -145,6 +145,10 @@
 
 .landing-nav-actions { display: flex; gap: 12px; align-items: center; }
 
+/* Mobile nav — hidden until the stacked layout kicks in */
+.landing-nav-toggle { display: none; }
+.landing-mobile-menu { display: none; }
+
 .landing-btn {
   display: inline-flex;
   align-items: center;
@@ -172,6 +176,26 @@
 .landing-btn-primary:hover { background: var(--soma-honey-500); transform: translateY(-1px); }
 
 /* HERO BODY */
+/* SCALED STAGE
+   The hero was art-directed at exactly 1440x780. Instead of letting each piece
+   reflow independently — which shifted the headline, the bears and the buttons
+   out of relation to each other on every other screen — the whole composition
+   is laid out at that fixed size and uniformly scaled to fit. Every proportion
+   is then identical on any aspect ratio; only the surrounding background grows.
+   The scale factor comes from Landing.jsx as --landing-scale. */
+.landing-stage {
+  position: absolute;
+  /* Anchored to the top, exactly as the composition sat before it was scaled:
+     any leftover height belongs at the bottom, where the cream band lives. */
+  top: 0;
+  left: 50%;
+  width: 1440px;
+  /* Height comes from the content; Landing.jsx measures it and fits to it. */
+  transform: translateX(-50%) scale(var(--landing-scale, 1));
+  transform-origin: top center;
+  z-index: 1;
+}
+
 .landing-page {
   max-width: none;
   width: 100%;
@@ -229,7 +253,7 @@
 .landing-hero-title {
   font-family: var(--soma-font-display);
   font-weight: 700;
-  font-size: clamp(48px, 6.2vw, 84px);
+  font-size: 84px;
   line-height: 1.04;
   letter-spacing: -0.02em;
   margin: 0 0 32px;
@@ -364,7 +388,17 @@
   position: fixed;
   left: 0; right: 0; bottom: 0;
   width: 100%;
-  height: 18vh;
+  /* 18vh is the band's authored height and the floor here, so a screen the
+     composition already fills looks exactly as it always did. Where the stage
+     falls short of the bottom, the band grows to meet it — vh minus the scaled
+     stage is the slack below it, plus the band's own 140 design units — so the
+     wave keeps sitting under the bears' feet instead of drifting away from them
+     on squarer screens. Capped so it never becomes a cream wall. */
+  height: clamp(
+    18vh,
+    calc(100% - (var(--landing-stage-h, 780px) - 140px) * var(--landing-scale, 1)),
+    45vh
+  );
   pointer-events: none;
   z-index: 2;
 }
@@ -398,11 +432,232 @@
 }
 .landing-floating-mascot .inner svg { width: 30px; height: 30px; }
 
-/* RESPONSIVE */
-@media (max-width: 980px) {
-  .landing-nav { padding: 20px 24px; }
-  .landing-nav-links { display: none; }
-  .landing-hero-body { grid-template-columns: 1fr; padding: 8px 24px 48px; }
-  .landing-hero-image-wrap { min-height: 360px; }
+/* RESPONSIVE
+   Two regimes, nothing in between:
+   - wide enough  the scaled stage above handles every aspect ratio on its own,
+                  so there is nothing here to adjust.
+   - narrow, or far taller than wide  the stage would shrink the type past
+                  readability (or strand it in a letterbox), so the layout drops
+                  out of it entirely and becomes a normal stacked, scrollable
+                  page. Kept in sync with MOBILE_QUERY in hooks/useMediaQuery.js. */
+@media (max-width: 899px), (max-aspect-ratio: 4/5) {
+  .landing-root {
+    position: fixed;
+    cursor: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* Out of the fixed canvas and back into normal flow */
+  .landing-stage {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    min-height: 100%;
+    transform: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .landing-page { flex: 1; display: flex; }
+  .landing-hero {
+    overflow: visible;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* NAV */
+  .landing-nav {
+    padding: 16px 20px;
+    gap: 12px;
+    /* A tall window can still be 1600px wide; without a measure the headline
+       and the paragraph would run the full width of it. */
+    width: 100%;
+    max-width: 800px;
+    margin-inline: auto;
+  }
+  .landing-brand-mark { height: 32px; }
+  .landing-nav-links,
+  .landing-nav-actions { display: none; }
+
+  .landing-nav-toggle {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 0 10px;
+    border: 1.5px solid var(--soma-honey-300);
+    border-radius: 14px;
+    background: rgba(255,255,255,.55);
+    flex-shrink: 0;
+  }
+  .landing-nav-toggle span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    border-radius: 2px;
+    background: var(--soma-ink-900);
+    transition: transform .22s ease, opacity .18s ease;
+  }
+  .landing-nav-toggle.is-open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .landing-nav-toggle.is-open span:nth-child(2) { opacity: 0; }
+  .landing-nav-toggle.is-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  .landing-mobile-menu {
+    display: block;
+    width: calc(100% - 40px);
+    max-width: 760px;
+    margin-inline: auto;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height .28s ease, opacity .2s ease;
+  }
+  .landing-mobile-menu.is-open {
+    /* Comfortably clears the four links plus the two buttons; the element is
+       still auto-height in practice because overflow only ever hides the tail. */
+    max-height: 420px;
+    opacity: 1;
+  }
+
+  .landing-mobile-menu a {
+    display: block;
+    padding: 13px 4px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--soma-ink-700);
+    border-bottom: 1px solid rgba(168,95,18,.12);
+  }
+  .landing-mobile-menu a.is-active { color: var(--soma-ink-900); }
+  .landing-mobile-menu-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 0 4px;
+  }
+  .landing-mobile-menu-actions .landing-btn {
+    justify-content: center;
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+
+  /* HERO */
   .landing-sprig { display: none; }
+
+  .landing-hero-body {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "sub"
+      "art"
+      "cta";
+    gap: 4px;
+    padding: 8px 20px 40px;
+    width: 100%;
+    max-width: 800px;
+    margin-inline: auto;
+    align-items: stretch;
+    flex: 1;
+    /* `safe` so a phone that cannot fit the hero scrolls to the top of it
+       rather than centring the overflow out of reach. */
+    align-content: safe center;
+  }
+
+  /* Lift the text block's children into the grid itself. The markup keeps the
+     actions inside it for the desktop column, but here the art belongs between
+     the paragraph and the buttons, which needs them to be siblings. */
+  .landing-hero-text { display: contents; }
+  .landing-hero-title { grid-area: title; }
+  .landing-hero-sub { grid-area: sub; }
+  .landing-hero-image-wrap { grid-area: art; }
+  .landing-cta-row { grid-area: cta; }
+
+  .landing-hero-title {
+    font-size: clamp(32px, 8.6vw, 52px);
+    line-height: 1.1;
+    margin: 0 0 18px;
+    white-space: normal;
+  }
+  /* The desktop line breaks and their trailing gaps are a widescreen device;
+     on a narrow column the headline just wraps. Dropping the <br> would weld
+     "listen" to "to", so each line hands back the space the break was standing
+     in for. */
+  .landing-hero-title .line { display: inline; padding-right: 0; }
+  .landing-hero-title .line::after { content: " "; }
+  .landing-hero-title br { display: none; }
+
+  .landing-hero-sub {
+    font-size: 16.5px;
+    width: auto;
+    max-width: 34em;
+    margin: 0;
+  }
+
+  .landing-cta-row { gap: 12px; }
+  .landing-btn-hero,
+  .landing-btn-explore {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 46%;
+    padding: 15px 22px;
+  }
+
+  .landing-hero-image-wrap {
+    min-height: 0;
+    margin: 18px 0 26px;
+    padding: 0;
+    justify-content: center;
+  }
+  .landing-hero-image { max-width: 560px; margin: 0 auto; }
+  .landing-hero-image img { padding: 0; }
+
+  /* Fixed to the viewport, this band would sit over the scrolling content like a
+     stuck overlay. The root gradient already closes the page off. */
+  .landing-bottom-frame { display: none; }
+}
+
+/* Very narrow phones */
+@media (max-width: 400px) {
+  .landing-nav { padding: 14px 16px; }
+  .landing-hero-body { padding: 8px 16px 36px; }
+  .landing-mobile-menu { width: calc(100% - 32px); }
+  .landing-btn-hero,
+  .landing-btn-explore { min-width: 100%; }
+}
+
+/* Phones held sideways: short and wide, so trim the vertical rhythm and put the
+   art back beside the text rather than stacking a 400px-tall image. */
+@media (max-width: 899px) and (orientation: landscape) {
+  .landing-hero-body {
+    grid-template-columns: 1fr 1fr;
+    /* Headline and paragraph in the left column with the art alongside them,
+       and the actions on their own band underneath both — so the art still
+       reads as sitting above the buttons rather than trailing past them. */
+    grid-template-areas:
+      "title art"
+      "sub   art"
+      "cta   cta";
+    grid-template-rows: auto auto auto;
+    column-gap: 24px;
+    row-gap: 0;
+    align-items: center;
+  }
+  /* The art spans both text rows, so those rows stretch to its height. Hugging
+     the boundary between them keeps the paragraph under the headline instead of
+     letting each drift to the middle of its own enlarged row. */
+  .landing-hero-title {
+    font-size: clamp(30px, 4.6vw, 44px);
+    margin: 0 0 14px;
+    align-self: end;
+  }
+  .landing-hero-sub { font-size: 15px; margin: 0; align-self: start; }
+  .landing-hero-image-wrap { margin: 0; }
+  .landing-cta-row { margin-top: 22px; }
 }

@@ -266,7 +266,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
   return (
     <div className="qna-layout">
       {/* Back button */}
-      <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
+      <div className="screen-back">
         <button className="outline-btn" onClick={() => { stopSpeaking(); onOsoMood?.('idle'); onBack() }}><span className="outline-btn__arrow">←</span>Back</button>
       </div>
 
@@ -330,7 +330,7 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
       </div>
 
       {/* Right: always-on visual panel */}
-      <div style={{ position: 'relative', overflow: 'hidden', width: '100%', height: '100%' }}>
+      <div className="qna-visual-col">
         <VisualPanel storyTrigger={storyTrigger} bearState={bearState} onBearPosition={setBearPos} />
         {(() => {
           const isNarrating = bearState === 'speak' && bearPos

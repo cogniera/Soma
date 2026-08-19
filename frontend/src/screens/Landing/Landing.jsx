@@ -1,12 +1,83 @@
+import { useState, useRef, useLayoutEffect } from 'react'
+import { MOBILE_QUERY } from '../../hooks/useMediaQuery'
 import './Landing.css'
 import bearsImg from './assets/bears-anatomy.png'
 
+// The hero is a single non-scrolling composition that was art-directed at one
+// exact width. Rather than let each element reflow on its own — which is what
+// made the layout fall apart on other aspect ratios — the whole stage is laid
+// out at that width and uniformly scaled to fit the viewport, so every
+// proportion stays identical no matter the screen.
+const DESIGN_W = 1440
+// Only a fallback: the real height is measured off the laid-out stage, so the
+// fit stays exact once the webfonts and the hero image have landed.
+const DESIGN_H = 780
+
+
+const NAV_LINKS = [
+  { label: 'Home', href: '#', active: true },
+  { label: 'How it works', href: 'https://github.com/cogniera/Soma' },
+  { label: 'GitHub', href: 'https://github.com/cogniera/Soma' },
+  { label: 'Devpost', href: 'https://devpost.com/software/soma-4wzq57' },
+]
+
 export default function Landing({ onChat, onExplore }) {
+  const stageRef = useRef(null)
+  const [scale, setScale] = useState(1)
+  const [stageH, setStageH] = useState(DESIGN_H)
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current
+
+    const fit = () => {
+      // The stacked layout does not use the stage, and measuring it there would
+      // just re-render on every frame of the menu's open/close transition.
+      if (window.matchMedia(MOBILE_QUERY).matches) return
+      // Leaving the stacked layout leaves the dropdown with nothing to drop from.
+      setMenuOpen(false)
+
+      const { innerWidth: w, innerHeight: h } = window
+      // offsetHeight is the pre-transform layout height, and the stage's width
+      // is fixed, so this stays stable no matter what scale is currently applied.
+      const stageHeight = stage?.offsetHeight || DESIGN_H
+
+      // The hero's trailing padding is breathing room, not composition: before
+      // any of this existed the viewport simply clipped it. Fitting to it would
+      // shrink the entire hero a couple of percent to protect empty space, so
+      // fit to everything above it and let it be cropped as it always was.
+      const heroBody = stage?.querySelector('.landing-hero-body')
+      const trailing = heroBody
+        ? parseFloat(getComputedStyle(heroBody).paddingBottom) || 0
+        : 0
+      const fitHeight = Math.max(1, stageHeight - trailing)
+
+      setStageH(stageHeight)
+      setScale(Math.min(w / DESIGN_W, h / fitHeight))
+    }
+
+    fit()
+    window.addEventListener('resize', fit)
+    window.addEventListener('orientationchange', fit)
+    // Webfonts and the hero image both land after first paint and both change
+    // how tall the composition is; re-fit rather than trust a hardcoded number.
+    const ro = stage ? new ResizeObserver(fit) : null
+    ro?.observe(stage)
+    return () => {
+      window.removeEventListener('resize', fit)
+      window.removeEventListener('orientationchange', fit)
+      ro?.disconnect()
+    }
+  }, [])
+
   return (
-    <div className="landing-root">
+    <div
+      className="landing-root"
+      style={{ '--landing-scale': scale, '--landing-stage-h': `${stageH}px` }}
+    >
       {/* Wavy ribbon background */}
       <div className="landing-hero-bg">
-        <svg viewBox="0 0 1280 720" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100vw', height: '100vh' }}>
+        <svg viewBox="0 0 1280 720" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="rib1" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#FFFFFF" stopOpacity=".55" />
@@ -23,6 +94,7 @@ export default function Landing({ onChat, onExplore }) {
         </svg>
       </div>
 
+      <div className="landing-stage" ref={stageRef}>
       <main className="landing-page">
         <section className="landing-hero">
 
@@ -35,17 +107,54 @@ export default function Landing({ onChat, onExplore }) {
             </div>
 
             <div className="landing-nav-links">
-              <a href="#" className="is-active">Home</a>
-              <a href="https://github.com/cogniera/Soma" target="_blank" rel="noopener noreferrer">How it works</a>
-              <a href="https://github.com/cogniera/Soma" target="_blank" rel="noopener noreferrer">GitHub</a>
-              <a href="https://devpost.com/software/soma-4wzq57" target="_blank" rel="noopener noreferrer">Devpost</a>
+              {NAV_LINKS.map(({ label, href, active }) => (
+                <a
+                  key={label}
+                  href={href}
+                  className={active ? 'is-active' : undefined}
+                  {...(active ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                >
+                  {label}
+                </a>
+              ))}
             </div>
 
             <div className="landing-nav-actions">
               <button className="landing-btn landing-btn-outline">Sign in</button>
               <button className="landing-btn landing-btn-primary" onClick={onChat}>Start a check-in</button>
             </div>
+
+            {/* Mobile menu toggle — only rendered by CSS below the breakpoint */}
+            <button
+              className={`landing-nav-toggle${menuOpen ? ' is-open' : ''}`}
+              onClick={() => setMenuOpen(o => !o)}
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            >
+              <span /><span /><span />
+            </button>
           </nav>
+
+          {/* Mobile dropdown menu */}
+          <div className={`landing-mobile-menu${menuOpen ? ' is-open' : ''}`}>
+            {NAV_LINKS.map(({ label, href, active }) => (
+              <a
+                key={label}
+                href={href}
+                className={active ? 'is-active' : undefined}
+                onClick={() => setMenuOpen(false)}
+                {...(active ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+              >
+                {label}
+              </a>
+            ))}
+            <div className="landing-mobile-menu-actions">
+              <button className="landing-btn landing-btn-outline">Sign in</button>
+              <button className="landing-btn landing-btn-primary" onClick={() => { setMenuOpen(false); onChat() }}>
+                Start a check-in
+              </button>
+            </div>
+          </div>
 
           {/* Decorative sprig */}
           <svg className="landing-sprig" viewBox="0 0 130 180" fill="none" aria-hidden="true">
@@ -99,6 +208,7 @@ export default function Landing({ onChat, onExplore }) {
           </div>
         </section>
       </main>
+      </div>
 
       {/* Diagonal cream frame across bottom */}
       <div className="landing-bottom-frame" aria-hidden="true">

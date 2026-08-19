@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import VoiceButton from '../../components/VoiceButton/VoiceButton'
 import VoxelBrain from '../../components/bodyman/VoxelBrain'
+import useMediaQuery, { MOBILE_QUERY } from '../../hooks/useMediaQuery'
 
 const QUICK_PICKS = [
   'Lower back', 'Shoulders', 'Quads',
@@ -11,6 +12,7 @@ export default function SymptomInput({ onSubmit, onVisual, onBack }) {
   const [text, setText]           = useState('')
   const [interimText, setInterim] = useState('')
   const textareaRef               = useRef(null)
+  const isMobile                  = useMediaQuery(MOBILE_QUERY)
 
   const submit = () => {
     const val = text.trim()
@@ -24,18 +26,22 @@ export default function SymptomInput({ onSubmit, onVisual, onBack }) {
   }
 
   return (
-    <div className="screen symptom-screen" style={{ overflow: 'hidden' }}>
-      <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
+    <div className="screen symptom-screen">
+      <div className="screen-back">
         <button className="outline-btn" onClick={onBack}><span className="outline-btn__arrow">←</span>Back</button>
       </div>
 
-      {/* 3D model — right half, behind content */}
-      <div style={{ position: 'fixed', top: 0, right: '0%', width: '42%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
-        <VoxelBrain autoRotate disperse={false} style={{ pointerEvents: 'none' }} />
-      </div>
+      {/* 3D model — right half, behind content. It is purely decorative here
+          (it does not accept input), and on a phone there is no half to give it,
+          so skip mounting the canvas rather than paying for a hidden WebGL scene. */}
+      {!isMobile && (
+        <div className="symptom-visual">
+          <VoxelBrain autoRotate disperse={false} style={{ pointerEvents: 'none' }} />
+        </div>
+      )}
 
       {/* Content — natural width, left side */}
-      <div style={{ maxWidth: 480, position: 'relative', zIndex: 1 }}>
+      <div className="symptom-content">
       <p className="chat-eyebrow">
         <span className="eyebrow-dot" />
         SOMA · Body Companion
