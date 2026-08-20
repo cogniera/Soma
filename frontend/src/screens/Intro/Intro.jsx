@@ -5,8 +5,6 @@ const GREETING =
   "Hi! I'm Oso, your personal health companion. I'm here to help you understand what your body is telling you. What's been bothering you today?"
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&family=Nunito:wght@400;600&display=swap');
-
   :root {
     --honey:    #F5A623;
     --amber:    #E8892B;
