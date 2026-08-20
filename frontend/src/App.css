@@ -586,6 +586,11 @@ html, body {
 .qna-bear-img {
   width:80px;
   height:80px;
+  /* How far to the side of the focused muscle Oso sits while narrating. Lives
+     here rather than in QnA.jsx so the phone can override it: the visual column
+     is a wide half-screen here but the full narrow width on mobile, where 200px
+     pushed him off the right edge. */
+  --bear-offset: 200px;
   object-fit:contain;
   filter:drop-shadow(0 6px 18px rgba(90,66,38,.22));
   transition:left .4s cubic-bezier(.25,.8,.25,1), top .4s cubic-bezier(.25,.8,.25,1);
@@ -966,7 +971,7 @@ html, body {
   /* Widen the column itself — a percentage cap on the bubble inside it would
      be resolving against a width that the bubble is itself deciding. */
   .bubble-col { max-width: 86%; }
-  .qna-bear-img { width: 56px; height: 56px; }
+  .qna-bear-img { width: 56px; height: 56px; --bear-offset: 72px; }
 
   /* Triage */
   .triage-screen--loading { height: 100dvh; }

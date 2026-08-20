@@ -342,8 +342,16 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
               draggable={false}
               style={{
                 position: 'absolute',
-                left: isNarrating ? `${bearPos.x + 200}px` : 'calc(100% - 64px)',
-                top: isNarrating ? `${bearPos.y}px` : 'calc(100% - 64px)',
+                // Clamped to the column so Oso stays fully visible however the
+                // projected muscle centroid lands. The 40px bounds match the
+                // margins below, which pull the image back to centre it on the
+                // point — so the limits are where his edge meets the column's.
+                left: isNarrating
+                  ? `clamp(40px, calc(${bearPos.x}px + var(--bear-offset)), calc(100% - 40px))`
+                  : 'calc(100% - 64px)',
+                top: isNarrating
+                  ? `clamp(40px, ${bearPos.y}px, calc(100% - 40px))`
+                  : 'calc(100% - 64px)',
                 marginLeft: '-40px',
                 marginTop: '-40px',
                 transition: 'left 0.6s cubic-bezier(0.4, 0, 0.2, 1), top 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
