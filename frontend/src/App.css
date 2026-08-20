@@ -65,12 +65,20 @@ html, body {
 }
 .orb {
   position: absolute; border-radius: 50%;
-  filter: blur(90px);
+  /* No filter: blur() here. These are radial gradients that already fade to
+     transparent, so a 90px blur was re-softening something that had no hard
+     edge to soften — and since the drift below scales them, the blurred layer
+     could never be cached and was re-rasterised every frame. Three of those at
+     once froze the check-in screen on mobile, where the orbs are actually
+     visible (landing hides them behind an opaque z-index:100 layer, which is
+     why only that screen locked up). The extra colour stops carry the falloff
+     the blur used to, and each orb is 180px wider with its position pulled back
+     90px so the glow keeps the same centre and spread as the blurred version. */
   animation: orbDrift 20s ease-in-out infinite alternate;
 }
-.orb-a { width:600px;height:600px;background:radial-gradient(circle,rgba(245,166,35,.18) 0%,transparent 70%);top:-15%;left:-15%;animation-delay:0s; }
-.orb-b { width:500px;height:500px;background:radial-gradient(circle,rgba(94,207,192,.14) 0%,transparent 70%);bottom:-15%;right:-10%;animation-delay:-8s; }
-.orb-c { width:400px;height:400px;background:radial-gradient(circle,rgba(255,203,164,.18) 0%,transparent 70%);top:40%;left:55%;animation-delay:-15s; }
+.orb-a { width:780px;height:780px;background:radial-gradient(circle,rgba(245,166,35,.15) 0%,rgba(245,166,35,.08) 38%,transparent 72%);top:calc(-15% - 90px);left:calc(-15% - 90px);animation-delay:0s; }
+.orb-b { width:680px;height:680px;background:radial-gradient(circle,rgba(94,207,192,.12) 0%,rgba(94,207,192,.06) 38%,transparent 72%);bottom:calc(-15% - 90px);right:calc(-10% - 90px);animation-delay:-8s; }
+.orb-c { width:580px;height:580px;background:radial-gradient(circle,rgba(255,203,164,.15) 0%,rgba(255,203,164,.08) 38%,transparent 72%);top:calc(40% - 90px);left:calc(55% - 90px);animation-delay:-15s; }
 @keyframes orbDrift {
   from { transform:translate(0,0) scale(1); }
   to   { transform:translate(50px,-50px) scale(1.1); }

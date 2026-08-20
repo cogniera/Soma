@@ -92,11 +92,15 @@ export default function Explore({ onBack }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, fontFamily: SOMA.fontBody }}>
+      {/* Hover dispersion is a pointer affordance, and a finger has no hover: on
+          a phone it only ever fires mid-drag, displacing voxels while you are
+          trying to orbit. Off there. */}
       <VoxelBrain
         focusGroup={active}
         resetSignal={resetSignal}
         onGroupClick={toggle}
         onBackgroundClick={() => setActive(null)}
+        disperse={!isMobile}
       />
 
       {/* Group buttons — a right-hand rail where there is a column to spare, and

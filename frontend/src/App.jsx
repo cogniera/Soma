@@ -11,6 +11,7 @@ import Anatomy    from './screens/Anatomy/Anatomy'
 import OsoCorner  from './components/OsoCorner/OsoCorner'
 import Explore     from './screens/Explore/Explore'
 import { preloadVoxelModel } from './components/bodyman/VoxelBrain'
+import useMediaQuery, { MOBILE_QUERY } from './hooks/useMediaQuery'
 
 // Phase flow: intro → landing → symptom → qna → triage → bodymap → anatomy
 // On refresh: skip intro, start at landing (sessionStorage flag)
@@ -32,10 +33,20 @@ export default function App() {
   const [session, setSession] = useState(INITIAL_SESSION)
   const [osoMood, setOsoMood] = useState('idle')
   const [mascotReady, setMascotReady] = useState(alreadyVisited)
+  const isMobile = useMediaQuery(MOBILE_QUERY)
 
   // Build the voxel model while the landing page is idle, so the first screen
   // that shows it does not have to wait on it.
+  //
+  // Not on a phone. Building all 62k voxels is one uninterruptible chunk of main
+  // thread work, and requestIdleCallback's timeout fires it whether or not the
+  // thread ever went idle — which on mobile lands right as someone taps into the
+  // check-in, freezing the back button and the textarea for seconds. No mobile
+  // screen shows the model before Explore, and SymptomInput skips mounting it
+  // outright, so there is nothing here to warm up for. Explore pays the build on
+  // mount instead, where a 3D model is what you are waiting for.
   useEffect(() => {
+    if (isMobile) return
     const idle = window.requestIdleCallback
       ? window.requestIdleCallback(preloadVoxelModel, { timeout: 2000 })
       : window.setTimeout(preloadVoxelModel, 200)
@@ -43,7 +54,7 @@ export default function App() {
       if (window.cancelIdleCallback) window.cancelIdleCallback(idle)
       else window.clearTimeout(idle)
     }
-  }, [])
+  }, [isMobile])
 
   const merge = (patch) => setSession(prev => ({ ...prev, ...patch }))
 
