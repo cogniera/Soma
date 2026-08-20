@@ -107,29 +107,95 @@ const HOVER_VERTEX_BEGIN = `vec3 transformed = vec3( position );
 type GroupGeometry = { geometry: THREE.BufferGeometry; edgeGeo: THREE.BufferGeometry };
 
 /**
+ * Every filled voxel across all groups, keyed by grid index. Groups overlap, so
+ * this has to span all of them — a face between two different muscles is still
+ * a buried face.
+ */
+type OccupancySet = { has(ix: number, iy: number, iz: number): boolean };
+
+function buildOccupancy(entries: ReturnType<typeof buildGroupGrids>): OccupancySet {
+  const B = 2048;
+  const pack = (ix: number, iy: number, iz: number) =>
+    (ix + 1024) + (iy + 1024) * B + (iz + 1024) * B * B;
+  const set = new Set<number>();
+  for (const { grid } of entries) {
+    const inv = 1 / grid.voxelSize;
+    for (const c of grid.cells) {
+      set.add(pack(
+        Math.round(c.x * inv - 0.5),
+        Math.round(c.y * inv - 0.5),
+        Math.round(c.z * inv - 0.5),
+      ));
+    }
+  }
+  return { has: (ix, iy, iz) => set.has(pack(ix, iy, iz)) };
+}
+
+/**
  * Builds the geometry for one muscle group. Pure vertex data — no materials, so
  * the result is safe to cache across mounts (see `getGroupGeometries`).
  */
 function buildGroupGeometry(
   grid: HeadGrid,
   r: number, g: number, b: number,
+  /**
+   * When given, faces pressed against an occupied neighbour are skipped, and
+   * voxels buried on all six sides emit nothing at all — 86% of the triangles
+   * and 27% of the voxels here are never visible. Only safe when the mesh will
+   * not be displaced: `hoverPush` moves whole voxels apart, and a face culled
+   * because a neighbour was touching it leaves a hole once that neighbour
+   * slides away. So this is passed for the screens that set `disperse={false}`
+   * and withheld from the ones that disperse.
+   */
+  occupied?: OccupancySet,
 ): GroupGeometry {
   const v = grid.voxelSize;
   const half = v * 0.5;
+  const inv = 1 / v;
   const count = grid.cells.length;
-  const positions = new Float32Array(count * 24 * 3);
-  const normals = new Float32Array(count * 24 * 3);
-  const voxelCenters = new Float32Array(count * 24 * 3);
-  const colors = new Float32Array(count * 24 * 3);
-  const indices = new Uint32Array(count * 36);
+
+  // Pass 1: count what will actually be emitted, so the buffers below can be
+  // allocated at their true size. Sizing them for every face and trimming after
+  // would not help: a trimmed subarray is only a view, so the full-size buffer
+  // stays alive and the allocation cost is paid regardless — which is the part
+  // that hurts on a phone.
+  let faceCount = count * 6;
+  let edgeVoxels = count;
+  if (occupied) {
+    faceCount = 0;
+    edgeVoxels = 0;
+    for (let i = 0; i < count; i++) {
+      const c = grid.cells[i];
+      const ix = Math.round(c.x * inv - 0.5);
+      const iy = Math.round(c.y * inv - 0.5);
+      const iz = Math.round(c.z * inv - 0.5);
+      let exposed = 0;
+      for (let f = 0; f < FACES.length; f++) {
+        const n = FACES[f].normal;
+        if (!occupied.has(ix + n[0], iy + n[1], iz + n[2])) exposed++;
+      }
+      faceCount += exposed;
+      if (exposed > 0) edgeVoxels++;
+    }
+  }
+
+  const positions = new Float32Array(faceCount * 12);
+  const normals = new Float32Array(faceCount * 12);
+  const voxelCenters = new Float32Array(faceCount * 12);
+  const colors = new Float32Array(faceCount * 12);
+  const indices = new Uint32Array(faceCount * 6);
   let vi = 0;
   let ii = 0;
 
   for (let i = 0; i < grid.cells.length; i++) {
     const c = grid.cells[i];
     const wx = c.x, wy = c.y, wz = c.z;
+    const ix = Math.round(wx * inv - 0.5);
+    const iy = Math.round(wy * inv - 0.5);
+    const iz = Math.round(wz * inv - 0.5);
     for (let f = 0; f < FACES.length; f++) {
       const face = FACES[f];
+      if (occupied?.has(ix + face.normal[0], iy + face.normal[1], iz + face.normal[2])) continue;
       const base = vi / 3;
       for (let k = 0; k < 4; k++) {
         const corner = face.corners[k];
@@ -157,12 +223,14 @@ function buildGroupGeometry(
     }
   }
 
+  // The buffers above are sized for every face; culling leaves them part-filled,
+  // so hand the GPU only the slice actually written.
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-  geometry.setAttribute("voxelCenter", new THREE.BufferAttribute(voxelCenters, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions.subarray(0, vi), 3));
+  geometry.setAttribute("normal", new THREE.BufferAttribute(normals.subarray(0, vi), 3));
+  geometry.setAttribute("voxelCenter", new THREE.BufferAttribute(voxelCenters.subarray(0, vi), 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors.subarray(0, vi), 3));
+  geometry.setIndex(new THREE.BufferAttribute(indices.subarray(0, ii), 1));
   geometry.computeBoundingSphere();
 
   // Build edge lines — 12 edges per voxel box
@@ -174,11 +242,24 @@ function buildGroupGeometry(
     [[-1,-1,-1],[-1,-1, 1]], [[ 1,-1,-1],[ 1,-1, 1]],
     [[-1, 1,-1],[-1, 1, 1]], [[ 1, 1,-1],[ 1, 1, 1]],
   ];
-  const edgePositions = new Float32Array(count * 12 * 2 * 3);
-  const edgeCenters = new Float32Array(count * 12 * 2 * 3);
+  const edgePositions = new Float32Array(edgeVoxels * 72);
+  const edgeCenters = new Float32Array(edgeVoxels * 72);
   let ei = 0;
   for (let i = 0; i < grid.cells.length; i++) {
     const c = grid.cells[i];
+    // A voxel with every neighbour present shows no face, so its wireframe is
+    // buried too. Skipping those drops 27% of the voxels and looks identical.
+    if (occupied) {
+      const ix = Math.round(c.x * inv - 0.5);
+      const iy = Math.round(c.y * inv - 0.5);
+      const iz = Math.round(c.z * inv - 0.5);
+      let exposed = false;
+      for (let f = 0; f < FACES.length && !exposed; f++) {
+        const n = FACES[f].normal;
+        if (!occupied.has(ix + n[0], iy + n[1], iz + n[2])) exposed = true;
+      }
+      if (!exposed) continue;
+    }
     for (const [a, b] of EDGE_PAIRS) {
       edgeCenters[ei + 0] = c.x; edgeCenters[ei + 1] = c.y; edgeCenters[ei + 2] = c.z;
       edgeCenters[ei + 3] = c.x; edgeCenters[ei + 4] = c.y; edgeCenters[ei + 5] = c.z;
@@ -191,8 +272,8 @@ function buildGroupGeometry(
     }
   }
   const edgeGeo = new THREE.BufferGeometry();
-  edgeGeo.setAttribute("position", new THREE.BufferAttribute(edgePositions, 3));
-  edgeGeo.setAttribute("voxelCenter", new THREE.BufferAttribute(edgeCenters, 3));
+  edgeGeo.setAttribute("position", new THREE.BufferAttribute(edgePositions.subarray(0, ei), 3));
+  edgeGeo.setAttribute("voxelCenter", new THREE.BufferAttribute(edgeCenters.subarray(0, ei), 3));
 
   return { geometry, edgeGeo };
 }
@@ -406,7 +487,6 @@ function buildRaycastGeometry(entries: ReturnType<typeof buildGroupGrids>): THRE
 
 type GroupCache = {
   entries: ReturnType<typeof buildGroupGrids>;
-  geometries: Array<{ name: string; geo: GroupGeometry }>;
   raycastGeometry: THREE.BufferGeometry;
   lookup: {
     map: Map<number, string>;
@@ -418,18 +498,36 @@ type GroupCache = {
 
 let _voxelCache: GroupCache | null = null;
 
+/**
+ * Geometry comes in two flavours and each is built at most once, on first use:
+ * `false` keeps every face (needed wherever `hoverPush` displaces voxels), and
+ * `true` keeps only the exposed ones. Most screens want the culled set, so a
+ * session usually builds one of the two, not both.
+ */
+type GroupGeometries = Array<{ name: string; geo: GroupGeometry }>;
+const _geometryCache = new Map<boolean, GroupGeometries>();
+
+function getGroupGeometries(culled: boolean): GroupGeometries {
+  const hit = _geometryCache.get(culled);
+  if (hit) return hit;
+
+  const entries = getVoxelCache().entries;
+  const occupied = culled ? buildOccupancy(entries) : undefined;
+  const color = new THREE.Color();
+  const built = entries.map(({ name, grid }, i) => {
+    const hex = GROUP_COLORS[name];
+    if (hex) color.set(hex);
+    else color.setHSL((i / entries.length) % 1, 0.7, 0.55);
+    return { name, geo: buildGroupGeometry(grid, color.r, color.g, color.b, occupied) };
+  });
+  _geometryCache.set(culled, built);
+  return built;
+}
+
 function getVoxelCache(): GroupCache {
   if (_voxelCache) return _voxelCache;
 
   const entries = buildGroupGrids();
-
-  const color = new THREE.Color();
-  const geometries = entries.map(({ name, grid }, i) => {
-    const hex = GROUP_COLORS[name];
-    if (hex) color.set(hex);
-    else color.setHSL((i / entries.length) % 1, 0.7, 0.55);
-    return { name, geo: buildGroupGeometry(grid, color.r, color.g, color.b) };
-  });
 
   const raycastGeometry = buildRaycastGeometry(entries);
 
@@ -450,7 +548,7 @@ function getVoxelCache(): GroupCache {
     lookup = { map, inv, voxelSize, pack };
   }
 
-  _voxelCache = { entries, geometries, raycastGeometry, lookup };
+  _voxelCache = { entries, raycastGeometry, lookup };
   return _voxelCache;
 }
 
@@ -459,7 +557,9 @@ function getVoxelCache(): GroupCache {
  * does not pay for it. Safe to call repeatedly; work happens only once.
  */
 export function preloadVoxelModel(): void {
-  getVoxelCache();
+  // The culled set — cheaper to build, and what every screen except a
+  // dispersing Explore actually renders.
+  getGroupGeometries(true);
 }
 
 let _bodyYBounds: { min: number; max: number } | null = null;
@@ -540,8 +640,10 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick, dis
   // eslint-disable-next-line react-hooks/exhaustive-deps
   []);
 
+  // Culled geometry only where nothing displaces the voxels — see the note on
+  // buildGroupGeometry's `occupied` argument.
   const groupMeshes = useMemo(() => {
-    return cache.geometries.map(({ name, geo }) => {
+    return getGroupGeometries(!disperse).map(({ name, geo }) => {
       // Create per-mesh dim uniform, starting at 0 (full colour)
       if (!dimUniformsRef.current.has(name)) {
         dimUniformsRef.current.set(name, { value: 0.0 });
@@ -551,10 +653,12 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick, dis
       return { name, mesh: createGroupMesh(geo, sharedUniforms, dimUniform) };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [disperse]);
 
   // Cached geometry outlives this mount, so only the per-mount materials are
-  // disposed here.
+  // disposed here. Keyed on groupMeshes rather than [] because switching
+  // `disperse` swaps in a whole new set and the old materials still need
+  // releasing.
   useEffect(() => {
     return () => {
       for (const { mesh } of groupMeshes) {
@@ -563,8 +667,11 @@ function Man({ focusGroup, flyState, orbitRef, onBearPosition, onGroupClick, dis
           if (child instanceof THREE.LineSegments) child.material.dispose();
         }
       }
-      (raycastMesh.material as THREE.Material).dispose();
     };
+  }, [groupMeshes]);
+
+  useEffect(() => {
+    return () => { (raycastMesh.material as THREE.Material).dispose(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -844,12 +951,21 @@ type VoxelBrainProps = {
   disperse?: boolean;
 };
 
+/**
+ * Phones report a devicePixelRatio of 3 fairly often, and rendering at even 2x
+ * is 4x the pixels of 1x — with MSAA on top — on exactly the GPUs least able to
+ * afford it, and at a screen size where the difference is hardest to see. Coarse
+ * pointers get a lower ceiling; mice and trackpads keep the old one.
+ */
+const MAX_DPR =
+  typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches ? 1.5 : 2;
+
 export default function VoxelBrain({ focusGroup = null, resetSignal = 0, autoRotate = false, style, onBearPosition, onGroupClick, onBackgroundClick, disperse = true }: VoxelBrainProps) {
   return (
     <Canvas
       camera={{ position: [HOME_OFFSET, 0.3, HOME_OFFSET], fov: 42, near: 0.5, far: 80 }}
       gl={{ antialias: true, alpha: true }}
-      dpr={[1, 2]}
+      dpr={[1, MAX_DPR]}
       style={{ background: "transparent", ...style }}
       // Only fires when the click hit nothing and the pointer barely moved
       // since it went down, so releasing an orbit drag over empty space does
