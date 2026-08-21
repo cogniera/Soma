@@ -148,11 +148,28 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
   }
 
   const playStory = async (triggerText, chatReply, cancelled) => {
-    const story = await muscleStory(triggerText)
-    if (cancelled?.() || !story?.length) return
+    let story = null
+    try {
+      story = await muscleStory(triggerText)
+    } catch (err) {
+      console.error('[QnA] muscle story error:', err)
+    }
+    if (cancelled?.()) return
+
+    // The narration is a nicety; the chat reply is the actual answer. If the
+    // story never arrives, speak the reply itself rather than leaving the user
+    // watching a spinner over an empty bubble.
+    if (!story?.length) story = chatReply ? [{ script: chatReply }] : []
+    if (!story.length) { setLoading(false); return }
+
+    // Hand the screen over as soon as there are words to show. Waiting for
+    // audio to start is what stranded phones on the thinking spinner: mobile
+    // blocks playback that begins outside a tap, and this is several awaits
+    // past one.
+    setLoading(false)
+    setBearState('speak')
 
     let accumulated = ''
-    let started = false
 
     // prefetch first segment immediately
     let nextBlob = prefetchAudio(story[0].script)
@@ -171,9 +188,6 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
       setStoryTrigger(scriptText)
       await speak(scriptText, {
         prefetchedBlob: blob,
-        onStart: () => {
-          if (!started) { started = true; setLoading(false); setBearState('speak') }
-        },
         onDuration: (dur) => { typeInto(accumulated, scriptText, dur) },
         onEnd: () => {
           accumulated += (accumulated ? ' ' : '') + scriptText
@@ -229,24 +243,40 @@ export default function QnA({ symptomText, onComplete, onOsoMood, onBack }) {
     ]
 
     const newTurns = turns + 1
-    setTurns(newTurns)
 
     let reply
+    let failed = false
     if (newTurns >= MAX_TURNS) {
       reply = "Thank you for sharing all of that — I have a clear picture now. Let me assess what might be going on."
     } else {
-      reply = await chat(history)
+      try {
+        reply = await chat(history)
+      } catch (err) {
+        // A dropped request used to reject into nothing, which left the spinner
+        // running for good. Say so instead, and don't burn the turn.
+        console.error('[QnA] chat error:', err)
+        reply = "Sorry — I lost that one on the way over. Could you say it again?"
+        failed = true
+      }
     }
+    if (!failed) setTurns(newTurns)
 
     setMessages(prev => [...prev, { role: 'assistant', text: '' }])
 
     let done2 = false
-    await playStory(val, reply, () => done2)
-    done2 = true
-    setBearState('idle')
-    onOsoMood?.('idle')
+    try {
+      if (failed) { stopTyping(reply) } else { await playStory(val, reply, () => done2) }
+    } catch (err) {
+      console.error('[QnA] send narration error:', err)
+      stopTyping(reply)
+    } finally {
+      done2 = true
+      setLoading(false)
+      setBearState('idle')
+      onOsoMood?.('idle')
+    }
 
-    if (newTurns >= MAX_TURNS) {
+    if (!failed && newTurns >= MAX_TURNS) {
       setTimeout(() => {
         const fullHistory = [
           ...messages.map(m => ({
